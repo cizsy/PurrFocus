@@ -1,0 +1,26 @@
+const toggleSubtask = (taskId, subtaskId) => {
+  // 1. Salin data tasks yang lama
+  const newTasks = tasks.map(task => {
+    if (task.id === taskId) {
+      // 2. Cari subtask yang diklik
+      const newSubtasks = task.subtasks.map(sub => {
+        if (sub.id === subtaskId) {
+          // 3. Balikkan status completed (true jadi false, dst)
+          return { ...sub, completed: !sub.completed };
+        }
+        return sub;
+      });
+      return { ...task, subtasks: newSubtasks };
+    }
+    return task;
+  });
+
+  // 4. Update state dengan data baru
+  setTasks(newTasks);
+};
+
+<input 
+  type="checkbox" 
+  checked={sub.completed} 
+  onChange={() => toggleSubtask(t.id, sub.id)} 
+/>
