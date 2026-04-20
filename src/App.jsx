@@ -1,18 +1,16 @@
 import { useState } from 'react'
+import { useEffect } from 'react';
 
 function App() {
   // 1. Ubah jadi 'tasks' (jamak) biar konsisten sama bawahnya
-  const [tasks, setTasks] = useState([
-    {
-      id: 1, 
-      title: "belajar react", 
-      status: "hunting", // setStatus diganti status aja biar enak
-      subtasks: [ // Pakai 's' di belakang
-        { id: 101, text: "bisa menjadi programmer handal", completed: false}, // 'text' huruf kecil
-        { id: 102, text: "bisa membuat koceng kenyang", completed: false},
-      ]
-    }
-  ]);
+  const [tasks, setTasks] = useState(() => {
+    const saved = localStorage.getItem("purrfocus_tasks");
+    return saved ? JSON.parse(saved) : [];
+  });
+
+  useEffect(() => {
+  localStorage.setItem("purrfocus_tasks", JSON.stringify(tasks));
+  }, [tasks]);
 
   const [newTasksName, setNewTasksName] = useState("");
 
@@ -46,6 +44,8 @@ function App() {
 
     setTasks(newTasks);
   }
+
+
 
   return (
     <div style={{ marginBottom: '20px', padding: '10px', backgroundColor: '#333469' }}>
