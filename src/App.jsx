@@ -1,14 +1,17 @@
-import { useState, useEffect } from 'react';
-import Tasklist from './components/tasks';
-
+import React, { useState, useEffect } from 'react';
+import TaskList from './components/Tasks'; // Pastikan nama file sesuai
+import Timer from './components/Timer';
 
 function App() {
+  const [view, setView] = useState('dashboard');
+
+
   const [tasks, setTasks] = useState(() => {
     const saved = localStorage.getItem("purrfocus_tasks");
     return saved ? JSON.parse(saved) : [];
   });
-
   const [newTasksName, setNewTasksName] = useState("");
+  const [activeTask, setActiveTask] = useState(null);
 
   useEffect(() => {
     localStorage.setItem("purrfocus_tasks", JSON.stringify(tasks));
@@ -27,7 +30,7 @@ function App() {
   };
 
   const toggleSubtask = (taskId, subtaskId) => {
-    const newTasks = tasks.map(task => {
+    setTasks(tasks.map(task => {
       if (task.id === taskId) {
         const newSubtasks = task.subtasks.map(sub => {
           if (sub.id === subtaskId) return { ...sub, completed: !sub.completed };
@@ -36,14 +39,13 @@ function App() {
         return { ...task, subtasks: newSubtasks };
       }
       return task;
-    });
-    setTasks(newTasks);
+    }));
   };
 
   const addSubtask = (taskId) => {
     const text = prompt("Masukkan tugas yang ingin kamu kejar (subtask):");
     if (text) {
-      const newTasks = tasks.map(task => {
+      setTasks(tasks.map(task => {
         if (task.id === taskId) {
           return {
             ...task,
@@ -51,18 +53,17 @@ function App() {
           };
         }
         return task;
-      });
-      setTasks(newTasks);
+      }));
     }
   };
 
   const deleteTask = (taskId) => {
     if (window.confirm("Yakin mau hapus task ini?")) {
       setTasks(tasks.filter(task => task.id !== taskId));
+      if (activeTask?.id === taskId) setActiveTask(null);
     }
   };
 
-  // FITUR EDIT (Yang kamu minta tadi)
   const editTask = (taskId) => {
     const currentTask = tasks.find(t => t.id === taskId);
     const newTitle = prompt("Ubah nama task:", currentTask.title);
@@ -71,27 +72,59 @@ function App() {
     }
   };
 
+  const startFocusing = (task) => {
+    setActiveTask(task);
+    setView('pawmodoro')
+  };
+
+  const backToDashboard = () => {
+    setView('dashboard');
+  };
+
   return (
-    <div style={{ padding: '20px', backgroundColor: '#333469', minHeight: '100vh', color: 'white' }}>
-      <h1>PurrFocus 🐾</h1>
+    <div style={{ padding: '20px', backgroundColor: '#333469', minHeight: '100vh', color: 'white', fontFamily: 'sans-serif' }}>
+      <h1 style={{ textAlign: 'center' }}>PurrFocus 🐾</h1>
 
-      <div style={{ marginBottom: '20px' }}>
-        <input 
-          type="text" 
-          placeholder="Mau berburu apa hari ini?" 
-          value={newTasksName}
-          onChange={(e) => setNewTasksName(e.target.value)}
-        />
-        <button onClick={addTasks}>Tambah task</button>
-      </div>
+      {/* Logika Pergantian Halaman: Jika view === 'dashboard', tampilkan input & list. Jika tidak, tampilkan Timer */}
+      {view === 'dashboard' ? (
+        <>
+          {/* --- HALAMAN DASHBOARD --- */}
+          <div style={{ margin: '30px 0', textAlign: 'center' }}>
+            <input
+              type="text"
+              placeholder="Mau berburu apa hari ini?"
+              value={newTasksName}
+              onChange={(e) => setNewTasksName(e.target.value)}
+              style={{ padding: '10px', borderRadius: '5px', border: 'none', width: '250px' }}
+            />
+            <button onClick={addTasks} style={{ padding: '10px 20px', marginLeft: '10px', cursor: 'pointer', borderRadius: '5px' }}>
+              Tambah task
+            </button>
+          </div>
 
-      <Tasklist
-        tasks={tasks}
-        toggleSubtask={toggleSubtask}
-        addSubtask={addSubtask}
-        deleteTask={deleteTask}
-        editTask={editTask}
-      />
+          <TaskList
+            tasks={tasks}
+            toggleSubtask={toggleSubtask}
+            addSubtask={addSubtask}
+            deleteTask={deleteTask}
+            editTask={editTask}
+            onStartFocusing={startFocusing} 
+          />
+        </>
+      ) : (
+        <>
+          {/* --- HALAMAN PAWMODORO (FOKUS) --- */}
+          <div style={{ textAlign: 'center' }}>
+            <button 
+              onClick={backToDashboard} 
+              style={{ marginBottom: '20px', padding: '10px 20px', cursor: 'pointer', borderRadius: '10px', backgroundColor: '#ffcc00', color: 'black', border: 'none', fontWeight: 'bold' }}>
+              ⬅ Kembali ke Dashboard
+            </button>
+            
+            <Timer activeTask={activeTask} />
+          </div>
+        </>
+      )}
     </div>
   );
 }

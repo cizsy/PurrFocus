@@ -1,26 +1,111 @@
-const toggleSubtask = (taskId, subtaskId) => {
-  // 1. Salin data tasks yang lama
-  const newTasks = tasks.map(task => {
-    if (task.id === taskId) {
-      // 2. Cari subtask yang diklik
-      const newSubtasks = task.subtasks.map(sub => {
-        if (sub.id === subtaskId) {
-          // 3. Balikkan status completed (true jadi false, dst)
-          return { ...sub, completed: !sub.completed };
-        }
-        return sub;
-      });
-      return { ...task, subtasks: newSubtasks };
+import React, { useState, useEffect } from 'react';
+
+function Timer({ activeTask }) {
+  const [mode, setMode] = useState('fokus');
+  const [fokusDuration, setFokusDuration] = useState(25);
+  const [seconds, setSeconds] = useState(25 * 60);
+  const [isActive, setIsActive] = useState(false);
+  const [sessionCount, setSessionCount] = useState(0); // Untuk hitung 4 sesi
+
+  useEffect(() => {
+    setIsActive(false);
+    resetTimerByMode(mode);
+  }, [mode, fokusDuration]);
+
+  const resetTimerByMode = (currentMode) => {
+    if (currentMode === 'fokus') setSeconds(fokusDuration * 60);
+    else if (currentMode === 'short') setSeconds(5 * 60);
+    else if (currentMode === 'long') setSeconds(10 * 60);
+  };
+
+  useEffect(() => {
+    let interval = null;
+    if (isActive && seconds > 0) {
+      interval = setInterval(() => {
+        setSeconds((prev) => prev - 1);
+      }, 1000);
+    } else if (seconds === 0 && isActive) {
+      handleSessionEnd(); // Panggil fungsi automasi saat waktu habis
     }
-    return task;
-  });
+    return () => clearInterval(interval);
+  }, [isActive, seconds]);
 
-  // 4. Update state dengan data baru
-  setTasks(newTasks);
-};
+  // --- LOGIKA AUTOMASI SESI ---
+  const handleSessionEnd = () => {
+    setIsActive(false);
+    
+    if (mode === 'fokus') {
+      const newSessionCount = sessionCount + 1;
+      setSessionCount(newSessionCount);
+      
+      if (newSessionCount % 4 === 0) {
+        alert("Hebat! 4 mangsa tertangkap. Waktunya Long Break! 🐾");
+        setMode('long');
+      } else {
+        alert("Satu sesi fokus selesai. Istirahat sejenak! 🐱");
+        setMode('short');
+      }
+    } else {
+      // Jika baru selesai break, otomatis balik ke mode fokus
+      alert("Istirahat selesai. Ayo berburu lagi! 🔥");
+      setMode('fokus');
+      // Opsional: Langsung jalankan timer lagi
+      // setIsActive(true); 
+    }
+  };
 
-<input 
-  type="checkbox" 
-  checked={sub.completed} 
-  onChange={() => toggleSubtask(t.id, sub.id)} 
-/>
+  const handleStart = () => {
+    // --- TASK BINDING CHECK ---
+    if (!activeTask) {
+      alert("Meong! Pilih satu mangsa (task) dulu sebelum mulai fokus! 🐾");
+      return;
+    }
+    setIsActive(true);
+  };
+
+  const formatTime = (secs) => {
+    const mins = Math.floor(secs / 60);
+    const s = secs % 60;
+    return `${mins}:${s < 10 ? '0' : ''}${s}`;
+  };
+
+  return (
+    <div style={{ textAlign: 'center', backgroundColor: '#444681', padding: '20px', borderRadius: '15px', color: 'white' }}>
+      
+      <div style={{ marginBottom: '10px' }}>
+        <p>Sesi Selesai: {sessionCount % 4}/4</p>
+      </div>
+
+      {activeTask ? (
+        <div style={{ marginBottom: '10px', padding: '10px', border: '2px solid #ffcc00', borderRadius: '10px' }}>
+          <p style={{ margin: 0, fontSize: '12px' }}>Sedang Mengerjakan:</p>
+          <h3 style={{ margin: 0, color: '#ffcc00' }}>🔥 {activeTask.title}</h3>
+        </div>
+      ) : (
+        <div style={{ marginBottom: '10px', padding: '10px', border: '2px dashed #ccc', borderRadius: '10px' }}>
+          <p>⚠️ Pilih task di bawah agar kucing bisa fokus! 🐾</p>
+        </div>
+      )}
+
+      <div style={{ fontSize: '60px', fontWeight: 'bold', fontFamily: 'monospace', color: '#ffcc00' }}>
+        {formatTime(seconds)}
+      </div>
+      
+      <div style={{ marginTop: '20px' }}>
+        <button 
+          onClick={isActive ? () => setIsActive(false) : handleStart} 
+          style={{ padding: '10px 30px', fontSize: '18px', borderRadius: '10px', cursor: 'pointer', backgroundColor: isActive ? '#ff4d4d' : '#4CAF50', color: 'white', border: 'none' }}>
+          {isActive ? "⏸️ PAUSE" : "▶️ START"}
+        </button>
+      </div>
+
+      {/* Tombol ganti mode manual (opsional, bisa dibatasi agar user tidak curang) */}
+      <div style={{ marginTop: '15px' }}>
+        <button onClick={() => setMode('fokus')} style={{ opacity: mode === 'fokus' ? 1 : 0.5 }}>Fokus</button>
+        <button onClick={() => setMode('short')} style={{ opacity: mode === 'short' ? 1 : 0.5 }}>Break</button>
+      </div>
+    </div>
+  );
+}
+
+export default Timer;
