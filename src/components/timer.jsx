@@ -7,10 +7,9 @@ function Timer({ activeTask }) {
   const [isActive, setIsActive] = useState(false);
   const [sessionCount, setSessionCount] = useState(0);
 
-  // --- 1. FUNGSI HELPER ---
-
-  // Ganti mode (Fokus, Short, Long)
+  // --- LOGIKA ANTI-GANTI ---
   const changeMode = (newMode) => {
+    if (isActive) return; // Tolak mentah-mentah jika timer jalan
     setIsActive(false);
     setMode(newMode);
     if (newMode === 'fokus') setSeconds(fokusDuration * 60);
@@ -18,13 +17,11 @@ function Timer({ activeTask }) {
     else if (newMode === 'long') setSeconds(10 * 60);
   };
 
-  // Atur durasi fokus secara manual (Tambah/Kurang)
   const adjustFokusDuration = (amount) => {
-    const newDuration = Math.max(5, Math.min(120, fokusDuration + amount));
+    if (isActive) return; // Tolak mentah-mentah jika timer jalan
+    const newDuration = Math.max(1, Math.min(120, fokusDuration + amount));
     setFokusDuration(newDuration);
-    // Jika sedang di mode fokus, langsung update detiknya tanpa useEffect
     if (mode === 'fokus') {
-      setIsActive(false);
       setSeconds(newDuration * 60);
     }
   };
@@ -49,13 +46,12 @@ function Timer({ activeTask }) {
 
   const handleStart = () => {
     if (!activeTask && mode === 'fokus') {
-      alert("Meong! Pilih satu mangsa (task) dulu sebelum mulai fokus! 🐾");
+      alert("Pilih satu mangsa dulu di dashboard! 🐾");
       return;
     }
     setIsActive(true);
   };
 
-  // --- 2. LOGIKA HITUNG MUNDUR ---
   useEffect(() => {
     let interval = null;
     if (isActive) {
@@ -71,129 +67,70 @@ function Timer({ activeTask }) {
       }, 1000);
     }
     return () => clearInterval(interval);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isActive, mode]);
 
   const formatTime = (secs) => {
-    const totalSeconds = Math.max(0, secs);
-    const mins = Math.floor(totalSeconds / 60);
-    const s = totalSeconds % 60;
+    const mins = Math.floor(secs / 60);
+    const s = secs % 60;
     return `${mins}:${s < 10 ? '0' : ''}${s}`;
   };
 
+  // Style helper untuk tombol yang sedang disable
+  const disabledStyle = {
+    opacity: 0.4,
+    cursor: 'not-allowed',
+    pointerEvents: 'none' // Mematikan interaksi mouse secara total
+  };
+
   return (
-    <div style={{ textAlign: 'center', backgroundColor: '#444681', padding: '20px', borderRadius: '15px', color: 'white', maxWidth: '500px', margin: '0 auto' }}>
+    <div style={{ textAlign: 'center', backgroundColor: '#444681', padding: '30px', borderRadius: '20px', color: 'white', maxWidth: '450px', margin: '0 auto', boxShadow: '0 8px 30px rgba(0,0,0,0.2)' }}>
       
-      <div style={{ marginBottom: '10px' }}>
-        <p style={{ fontWeight: 'bold' }}>Sesi Selesai: {sessionCount % 4}/4 🐾</p>
+      <p style={{ fontWeight: 'bold', color: '#ffcc00' }}>🏆 Sesi Selesai: {sessionCount % 4}/4</p>
+
+      <div style={{ margin: '20px 0', padding: '15px', border: '2px solid #ffcc00', borderRadius: '15px', backgroundColor: 'rgba(255, 204, 0, 0.1)' }}>
+        <p style={{ margin: 0, fontSize: '12px' }}>TARGET SAAT INI:</p>
+        <h3 style={{ margin: 0, color: '#ffcc00' }}>🔥 {activeTask?.title || "Belum ada task"}</h3>
       </div>
 
-      {activeTask ? (
-        <div style={{ marginBottom: '20px', padding: '10px', border: '2px solid #ffcc00', borderRadius: '10px', backgroundColor: 'rgba(255, 204, 0, 0.1)' }}>
-          <p style={{ margin: 0, fontSize: '12px' }}>Sedang Mengerjakan:</p>
-          <h3 style={{ margin: 0, color: '#ffcc00' }}>🔥 {activeTask.title}</h3>
-        </div>
-      ) : (
-        <div style={{ marginBottom: '20px', padding: '10px', border: '2px dashed #ccc', borderRadius: '10px' }}>
-          <p style={{ margin: 0 }}>⚠️ Pilih task di bawah agar kucing bisa fokus!</p>
-        </div>
-      )}
-
-
-     {/* PENGATUR DURASI (Dikunci saat sedang fokus) */}
-      <div style={{ marginBottom: '15px' }}>
-        <p style={{ fontSize: '14px', marginBottom: '5px' }}>Atur Waktu Fokus:</p>
-        <button 
-          disabled={isActive} 
-          onClick={() => adjustFokusDuration(-5)} 
-          style={{ cursor: isActive ? 'not-allowed' : 'pointer', opacity: isActive ? 0.5 : 1 }}> 
-          ➖ 
-        </button>
-        <span style={{ margin: '0 15px', fontWeight: 'bold' }}> {fokusDuration}m </span>
-        <button 
-          disabled={isActive} 
-          onClick={() => adjustFokusDuration(5)} 
-          style={{ cursor: isActive ? 'not-allowed' : 'pointer', opacity: isActive ? 0.5 : 1 }}> 
-          ➕ 
-        </button>
+      {/* --- PENGATUR DURASI --- */}
+      <div style={{ marginBottom: '20px', ...(isActive ? disabledStyle : {}) }}>
+        <p style={{ fontSize: '14px', marginBottom: '8px' }}>Atur Menit Fokus:</p>
+        <button onClick={() => adjustFokusDuration(-1)} style={{ padding: '5px 15px', cursor: 'pointer' }}>➖</button>
+        <span style={{ margin: '0 20px', fontWeight: 'bold', fontSize: '20px' }}>{fokusDuration}m</span>
+        <button onClick={() => adjustFokusDuration(1)} style={{ padding: '5px 15px', cursor: 'pointer' }}>➕</button>
       </div>
 
-      <h2 style={{ fontSize: '18px', marginBottom: '5px', letterSpacing: '2px' }}>{mode.toUpperCase()} MODE</h2>
-      <div style={{ fontSize: '70px', fontWeight: 'bold', fontFamily: 'monospace', color: '#ffcc00', marginBottom: '20px' }}>
+      <h2 style={{ fontSize: '14px', letterSpacing: '3px', margin: 0 }}>{mode.toUpperCase()} MODE</h2>
+      <div style={{ fontSize: '80px', fontWeight: 'bold', fontFamily: 'monospace', color: '#ffcc00', margin: '10px 0' }}>
         {formatTime(seconds)}
       </div>
 
-      <div style={{ marginBottom: '25px' }}>
+      <div style={{ marginBottom: '30px' }}>
         <button 
           onClick={isActive ? () => setIsActive(false) : handleStart} 
-          style={{ padding: '12px 40px', fontSize: '18px', borderRadius: '10px', cursor: 'pointer', backgroundColor: isActive ? '#ff4d4d' : '#4CAF50', color: 'white', border: 'none', fontWeight: 'bold' }}>
+          style={{ padding: '15px 40px', fontSize: '18px', borderRadius: '12px', cursor: 'pointer', backgroundColor: isActive ? '#ff4d4d' : '#4CAF50', color: 'white', border: 'none', fontWeight: 'bold' }}>
           {isActive ? "⏸️ PAUSE" : "▶️ START"}
         </button>
         
-       <button 
-          disabled={isActive}
+        <button 
           onClick={() => changeMode(mode)} 
-          style={{ 
-            marginLeft: '10px', 
-            padding: '12px 20px', 
-            cursor: isActive ? 'not-allowed' : 'pointer', 
-            borderRadius: '10px', 
-            border: 'none', 
-            backgroundColor: '#eee', 
-            color: '#333',
-            opacity: isActive ? 0.4 : 1
-          }}>
+          style={{ marginLeft: '10px', padding: '15px 20px', borderRadius: '12px', border: 'none', backgroundColor: '#eee', ...(isActive ? disabledStyle : { cursor: 'pointer' }) }}>
           🔄 RESET
         </button>
       </div>
 
-      {/* Tombol Mode (Fokus, Short, Long) */}
-      <div style={{ display: 'flex', justifyContent: 'center', gap: '10px' }}>
-        <button 
-          disabled={isActive} 
-          onClick={() => changeMode('fokus')} 
-          style={{ 
-            backgroundColor: mode === 'fokus' ? '#ffcc00' : '#666', 
-            border: 'none', 
-            padding: '8px 15px', 
-            borderRadius: '5px', 
-            color: 'black',
-            // Tambahan visual agar terlihat mati saat isActive = true
-            opacity: isActive ? 0.4 : 1, 
-            cursor: isActive ? 'not-allowed' : 'pointer' 
-          }}>
-          Fokus
-        </button>
-        
-        <button 
-          disabled={isActive} 
-          onClick={() => changeMode('short')} 
-          style={{ 
-            backgroundColor: mode === 'short' ? '#ffcc00' : '#666', 
-            border: 'none', 
-            padding: '8px 15px', 
-            borderRadius: '5px', 
-            color: 'black',
-            opacity: isActive ? 0.4 : 1, 
-            cursor: isActive ? 'not-allowed' : 'pointer' 
-          }}>
-          Short Break
-        </button>
-        
-        <button 
-          disabled={isActive} 
-          onClick={() => changeMode('long')} 
-          style={{ 
-            backgroundColor: mode === 'long' ? '#ffcc00' : '#666', 
-            border: 'none', 
-            padding: '8px 15px', 
-            borderRadius: '5px', 
-            color: 'black',
-            opacity: isActive ? 0.4 : 1, 
-            cursor: isActive ? 'not-allowed' : 'pointer' 
-          }}>
-          Long Break
-        </button>
+      <div style={{ display: 'flex', justifyContent: 'center', gap: '10px', ...(isActive ? disabledStyle : {}) }}>
+        {['fokus', 'short', 'long'].map((m) => (
+          <button 
+            key={m}
+            onClick={() => changeMode(m)} 
+            style={{ 
+              backgroundColor: mode === m ? '#ffcc00' : '#666', 
+              border: 'none', padding: '10px 15px', borderRadius: '8px', cursor: 'pointer', color: mode === m ? 'black' : 'white', fontWeight: 'bold' 
+            }}>
+            {m === 'fokus' ? 'Fokus' : m === 'short' ? 'Short Break' : 'Long Break'}
+          </button>
+        ))}
       </div>
     </div>
   );
