@@ -1,12 +1,12 @@
+// components/tasks.jsx
 import React from "react";
 
-function TaskList({ tasks, toggleSubtask, addSubtask, deleteTask, editTask, onStartFocusing }) {
+function TaskList({ tasks, toggleSubtask, addSubtask, deleteTask, editTask, onStartFocusing, onEditSubtask, onDeleteSubtask }) {
   return (
     <div className="task-container" style={{ maxWidth: '600px', margin: '0 auto' }}>
       {tasks.map((t) => (
         <div key={t.id} style={{ border: '1px solid #ccc', margin: '15px 0', padding: '15px', borderRadius: '12px', backgroundColor: 'white', color: 'black', boxShadow: '0 4px 6px rgba(0,0,0,0.1)' }}>
           <h3 style={{ marginTop: 0 }}>{t.title}</h3>
-
           <div style={{ marginBottom: '10px' }}>
             <button onClick={() => editTask(t.id)}>📝 Edit</button>
             <button onClick={() => addSubtask(t.id)} style={{ margin: '0 5px' }}>+ Sub-rencana</button>
@@ -35,15 +35,34 @@ function TaskList({ tasks, toggleSubtask, addSubtask, deleteTask, editTask, onSt
 
           <ul style={{ listStyle: 'none', padding: '10px 0 0 0' }}>
             {t.subtasks.map((sub) => (
-              <li key={sub.id} style={{ padding: '5px 0', borderBottom: '1px solid #f0f0f0' }}>
+              <li key={sub.id} style={{ padding: '5px 0', borderBottom: '1px solid #f0f0f0', display: 'flex', alignItems: 'center' }}>
                 <input 
                   type="checkbox" 
                   checked={sub.completed} 
                   onChange={() => toggleSubtask(t.id, sub.id)} 
                 /> 
-                <span style={{ textDecoration: sub.completed ? 'line-through' : 'none', marginLeft: '8px' }}>
+                <span 
+                  style={{ 
+                    textDecoration: sub.completed ? 'line-through' : 'none', 
+                    marginLeft: '8px',
+                    cursor: 'pointer',
+                    flex: 1
+                  }}
+                  onClick={() => onEditSubtask(t.id, sub.id)}  // Changed to onEditSubtask
+                >
                   {sub.text}
                 </span>
+                <button 
+                  onClick={() => onEditSubtask(t.id, sub.id)}  // Changed to onEditSubtask
+                  style={{ marginLeft: '5px', background: 'none', border: 'none', cursor: 'pointer', fontSize: '12px' }}
+                >
+                  ✏️
+                </button>
+                <button 
+                  onClick={() => onDeleteSubtask(t.id, sub.id)}  // Changed to onDeleteSubtask
+                  className="btn btn-outline btn-primary">
+                  🗑️
+                </button>
               </li>
             ))}
           </ul>

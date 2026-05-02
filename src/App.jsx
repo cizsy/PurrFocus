@@ -15,7 +15,9 @@ function App() {
     editTask, 
     toggleSubtask, 
     addSubtask,
-    getActiveTask 
+    getActiveTask, 
+    editSubtask,
+    deleteSubtask, // Make sure this is destructured
   } = useTasks();
 
   const currentActiveTask = getActiveTask(activeTaskId);
@@ -31,6 +33,18 @@ function App() {
     }
   };
 
+  const handleFinishSession = (taskId) => {
+    const task = tasks.find(t => t.id === taskId);
+    if (task && task.subtasks.length > 0) {
+      const firstUnfinished = task.subtasks.find(s => !s.completed);
+    if (firstUnfinished) {
+      toggleSubtask(taskId, firstUnfinished.id);
+    }
+    }
+
+    console.log("sesi selesai untuk task:", taskId);
+  }
+
   return (
     <div style={{ padding: '20px', backgroundColor: '#333469', minHeight: '100vh', color: 'white', fontFamily: 'sans-serif' }}>
       <h1 style={{ textAlign: 'center' }}>PurrFocus 🐾</h1>
@@ -44,13 +58,17 @@ function App() {
           onToggleSubtask={toggleSubtask}
           onAddSubtask={addSubtask}
           onStartFocusing={startFocusing}
+          onEditSubtask={editSubtask}
+          onDeleteSubtask={deleteSubtask} // Add this line
         />
       ) : (
         <Pawmodoro 
           activeTask={currentActiveTask}
           onToggleSubtask={toggleSubtask}
           onAddSubtask={addSubtask}
+          onDeleteSubtask={deleteSubtask} // Add this line
           onBack={() => setView('dashboard')}
+          onFinishSession={handleFinishSession}
         />
       )}
     </div>

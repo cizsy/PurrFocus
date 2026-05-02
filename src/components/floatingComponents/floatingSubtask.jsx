@@ -1,7 +1,7 @@
 // components/FloatingSubtask.jsx
 import React, { useState } from 'react';
 
-function FloatingSubtask({ activeTask, onToggleSubtask, onAddSubtask }) {
+function FloatingSubtask({ activeTask, onToggleSubtask, onAddSubtask, onEditSubtask, onDeleteSubtask }) {
   const [showOverlay, setShowOverlay] = useState(false);
 
   if (!activeTask) return null;
@@ -19,9 +19,35 @@ function FloatingSubtask({ activeTask, onToggleSubtask, onAddSubtask }) {
                   checked={sub.completed} 
                   onChange={() => onToggleSubtask(activeTask.id, sub.id)} 
                 />
-                <span style={{ marginLeft: '10px', textDecoration: sub.completed ? 'line-through' : 'none', color: sub.completed ? '#888' : 'black' }}>
+                <span 
+                  style={{ 
+                    marginLeft: '10px', 
+                    textDecoration: sub.completed ? 'line-through' : 'none', 
+                    color: sub.completed ? '#888' : 'black',
+                    flex: 1
+                  }}
+                  onClick={() => onEditSubtask(activeTask.id, sub.id)}
+                >
                   {sub.text}
                 </span>
+                <button 
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onEditSubtask(activeTask.id, sub.id);
+                  }}
+                  style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '0 3px' }}
+                >
+                  ✏️
+                </button>
+                <button 
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onDeleteSubtask(activeTask.id, sub.id);
+                  }}
+                  style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '0 3px' }}
+                >
+                  🗑️
+                </button>
               </div>
             ))}
           </div>

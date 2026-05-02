@@ -76,6 +76,46 @@ function useTasks() {
     }));
   };
 
+  //edit subtask
+
+const editSubtask = (taskId, subtaskId) => {
+  const currentTask = tasks.find(t => t.id === taskId);
+  if (!currentTask) return;
+  
+  const currentSubtask = currentTask.subtasks.find(s => s.id === subtaskId);
+  if (!currentSubtask) return;
+  
+  const newText = prompt("Ubah nama subtask:", currentSubtask.text);
+  
+  if (newText && newText.trim() !== "") {
+    setTasks(prev => prev.map(task => {
+      if (task.id !== taskId) return task;
+      
+      return {
+        ...task,
+        subtasks: task.subtasks.map(sub => 
+          sub.id === subtaskId ? { ...sub, text: newText } : sub
+        )
+      };
+    }));
+  }
+};
+
+  // hooks/useTasks.js
+const deleteSubtask = (taskId, subtaskId) => {
+  if (!window.confirm("Yakin hapus subtask ini?")) return;
+  
+  setTasks(prev => prev.map(task => {
+    if (task.id !== taskId) return task;
+    
+    return {
+      ...task,
+      subtasks: task.subtasks.filter(sub => sub.id !== subtaskId)
+    };
+  }));
+};
+
+
   // Dapatkan task aktif berdasarkan ID
   const getActiveTask = (activeTaskId) => {
     return tasks.find(t => t.id === activeTaskId) || null;
@@ -97,7 +137,9 @@ function useTasks() {
     toggleSubtask,   // fungsi toggle subtask
     addSubtask,      // fungsi tambah subtask
     getActiveTask,   // fungsi ambil task aktif
-    getTaskProgress  // fungsi hitung progress
+    getTaskProgress,  // fungsi hitung progress
+    editSubtask,
+    deleteSubtask,
   };
 }
 

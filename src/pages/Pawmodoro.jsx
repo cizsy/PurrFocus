@@ -1,9 +1,9 @@
 // pages/Pawmodoro.jsx
 import React from 'react';
 import Timer from '../components/Timer';
-import FloatingSubtask from '../components/floatingSubtask';
+import FloatingSubtask from '../components/floatingComponents/floatingSubtask';
 
-function Pawmodoro({ activeTask, onToggleSubtask, onAddSubtask, onBack }) {
+function Pawmodoro({ activeTask, onToggleSubtask, onAddSubtask, onEditSubtask, onDeleteSubtask, onBack, onFinishSession }) {
   return (
     <div style={{ textAlign: 'center' }}>
       <button 
@@ -12,12 +12,17 @@ function Pawmodoro({ activeTask, onToggleSubtask, onAddSubtask, onBack }) {
         ⬅ Dashboard
       </button>
       
-      <Timer activeTask={activeTask} />
+      <Timer 
+      activeTask={activeTask} 
+      onFinishSession={onFinishSession}
+      />
 
       <FloatingSubtask 
         activeTask={activeTask}
         onToggleSubtask={onToggleSubtask}
         onAddSubtask={onAddSubtask}
+        onEditSubtask={onEditSubtask}
+        onDeleteSubtask={onDeleteSubtask}
       />
     </div>
   );

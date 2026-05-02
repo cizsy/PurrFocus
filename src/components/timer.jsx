@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import toast, { Toaster } from 'react-hot-toast';
 import useSound from 'use-sound';
 
-function Timer({ activeTask }) {
+function Timer({ activeTask, onFinishSession }) {
   const [mode, setMode] = useState('fokus');
   const [fokusDuration, setFokusDuration] = useState(25);
   const [seconds, setSeconds] = useState(25 * 60);
@@ -61,6 +61,10 @@ function Timer({ activeTask }) {
     if (mode === 'fokus') {
       const newCount = sessionCount + 1;
       setSessionCount(newCount);
+
+      if (onFinishSession && activeTask) {
+        onFinishSession(activeTask.id);
+      }
       
       toast.success(`🎉 Sesi fokus selesai! +1 mangsa`, {
         duration: 3000,

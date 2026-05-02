@@ -2,7 +2,17 @@
 import React, { useState } from 'react';
 import TaskList from '../components/tasks';
 
-function Dashboard({ tasks, onAddTask, onDeleteTask, onEditTask, onToggleSubtask, onAddSubtask, onStartFocusing }) {
+function Dashboard({ 
+  tasks, 
+  onAddTask, 
+  onDeleteTask, 
+  onEditTask, 
+  onToggleSubtask, 
+  onAddSubtask, 
+  onStartFocusing,
+  onEditSubtask,
+  onDeleteSubtask
+  }) {
   const [newTasksName, setNewTasksName] = useState("");
 
   const handleAddTask = () => {
@@ -33,6 +43,9 @@ function Dashboard({ tasks, onAddTask, onDeleteTask, onEditTask, onToggleSubtask
         deleteTask={onDeleteTask}
         editTask={onEditTask}
         onStartFocusing={onStartFocusing}
+        onEditSubtask={onEditSubtask}
+        onDeleteSubtask={onDeleteSubtask}
+
       />
     </>
   );
