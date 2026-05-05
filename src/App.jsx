@@ -46,8 +46,7 @@ function App() {
   }
 
   return (
-    <div style={{ padding: '20px', backgroundColor: '#333469', minHeight: '100vh', color: 'white', fontFamily: 'sans-serif' }}>
-      <h1 style={{ textAlign: 'center' }}>PurrFocus 🐾</h1>
+    <div className="min-h-screen bg-base-200">
 
       {view === 'dashboard' ? (
         <Dashboard 
