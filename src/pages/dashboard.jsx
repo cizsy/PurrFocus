@@ -1,26 +1,9 @@
 import React, { useState } from 'react';
-import useStats from '../hooks/useStats'; // Import hook statistik
-import logoLight from '../assets/logoLight.png'; 
-import profil from '../assets/profil.jpg';
+import useStats from '../hooks/useStats'; 
 
-function Dashboard({ 
-  tasks = [], 
-  onAddTask, 
-  onStartFocusing,
-  onDeleteTask, 
-  onEditTask 
-}) {
+function Dashboard({ tasks = [], onAddTask, onStartFocusing, onDeleteTask, onEditTask }) {
   const [newTasksName, setNewTasksName] = useState("");
-  
-  // Mengambil data statistik dari hook khusus
-  const { 
-    focusTimeToday, 
-    sessionCount, 
-    completedTasks, 
-    focusScore, 
-    currentStreak,
-    weeklyDistribution 
-  } = useStats(tasks);
+  const { focusTimeToday, sessionCount, completedTasks, focusScore, currentStreak } = useStats(tasks);
 
   const getProgress = (task) => {
     const total = task.subtasks?.length || 0;
@@ -29,164 +12,160 @@ function Dashboard({
     return { total, done, percent };
   };
 
-  const handleAddTask = () => {
-    if (newTasksName.trim() === "") return;
-    onAddTask(newTasksName);
-    setNewTasksName("");
-  };
+  const activeTasks = tasks.filter(task => getProgress(task).percent < 100);
 
   return (
-    <div className="flex h-screen bg-[#b8c9f2] text-slate-800 font-sans overflow-hidden p-4">
+    // Margin dirapatkan dari p-10 ke p-6
+    <div className="p-6 grid grid-cols-12 gap-6 bg-white min-h-full">
       
-      {/* 🐾 SIDEBAR */}
-      <div className="w-64 flex flex-col p-4 pr-6">
-        <div className="mb-10 ml-2">
-          <img src={logoLight} alt="PurrFocus Logo" className="w-48 object-contain" />
-        </div>
-        
-        <ul className="space-y-2 flex-1">
-          <li><button className="flex items-center gap-3 font-bold text-lg bg-white/40 w-full p-3 rounded-2xl text-blue-900 shadow-sm transition-all">🏠 Beranda</button></li>
-          <li><button className="flex items-center gap-3 font-bold text-lg opacity-60 hover:opacity-100 hover:bg-white/20 w-full p-3 rounded-2xl transition-all">📊 Statistik</button></li>
-          <li><button className="flex items-center gap-3 font-bold text-lg opacity-60 hover:opacity-100 hover:bg-white/20 w-full p-3 rounded-2xl transition-all">⚙️ Pengaturan</button></li>
-        </ul>
-
-        <button 
-          onClick={() => tasks.length > 0 && onStartFocusing(tasks[0])}
-          className={`btn border-none text-white shadow-lg rounded-2xl h-14 text-lg font-bold transition-all ${tasks.length > 0 ? 'bg-blue-600 hover:bg-blue-700' : 'bg-slate-400 cursor-not-allowed'}`}
-          disabled={tasks.length === 0}
-        >
-          Mulai Fokus
-        </button>
+      {/* 📊 STATS GRID - Sekarang ada 5 kartu (Streak masuk sini) */}
+      <div className="col-span-12 grid grid-cols-2 md:grid-cols-5 gap-3">
+        <StatCard icon="⏱️" label="Fokus" value={focusTimeToday} color="blue" />
+        <StatCard icon="⚔️" label="Sesi" value={sessionCount} color="orange" />
+        <StatCard icon="✅" label="Selesai" value={completedTasks} color="green" />
+        <StatCard icon="🎯" label="Skor" value={`${focusScore}%`} color="purple" />
+        {/* Streak versi ramping */}
+        <StatCard icon="🔥" label="Streak" value={currentStreak} color="red" />
       </div>
 
-      {/* 🚀 MAIN CONTENT */}
-      <div className="flex-1 bg-white rounded-[3rem] shadow-2xl flex flex-col overflow-hidden border-4 border-white/50">
-        
-        <nav className="px-10 py-6 flex justify-between items-center bg-white border-b border-slate-50">
-          <div>
-            <h2 className="text-2xl font-black text-slate-800">Selamat pagi, Hunter! 👋</h2>
-            <p className="text-sm text-slate-400 font-medium">Kamu punya {tasks.length - completedTasks} target tersisa hari ini.</p>
-          </div>
-          
-          <div className="flex items-center gap-4">
-            <div className="text-right">
-              <p className="font-bold text-slate-700 leading-none">John Doe</p>
-              <p className="text-[10px] text-blue-500 font-bold uppercase tracking-tighter">Pro Member</p>
-            </div>
-            <img src={profil} alt="Profil" className="w-12 h-12 rounded-2xl object-cover border-2 border-blue-100 shadow-md" />
-          </div>
-        </nav>
-
-        <div className="p-10 pt-8 grid grid-cols-12 gap-8 overflow-y-auto custom-scrollbar">
-          
-          <div className="col-span-12 lg:col-span-8 space-y-8">
-            {/* 📊 DYNAMIC STATS GRID */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <StatCard icon="⏱️" label="Fokus" value={focusTimeToday} color="blue" />
-              <StatCard icon="⚔️" label="Sesi" value={sessionCount} color="orange" />
-              <StatCard icon="✅" label="Selesai" value={completedTasks} color="green" />
-              <StatCard icon="🎯" label="Skor" value={`${focusScore}%`} color="purple" />
-            </div>
-
-            {/* TASK LIST */}
-            <div className="bg-white border border-slate-100 rounded-[2.5rem] p-8 shadow-sm">
-              <div className="flex justify-between items-center mb-8">
-                <h3 className="text-xl font-black">Daftar Berburu 🐾</h3>
-                <div className="flex gap-1 bg-slate-50 p-2 rounded-xl border border-slate-200">
-                  <input 
-                    className="bg-transparent px-3 py-1 text-sm outline-none w-40 focus:w-48 transition-all" 
-                    placeholder="Lacak target baru..."
-                    value={newTasksName}
-                    onChange={(e) => setNewTasksName(e.target.value)}
-                    onKeyDown={(e) => e.key === 'Enter' && handleAddTask()}
-                  />
-                  <button onClick={handleAddTask} className="btn btn-sm bg-blue-600 hover:bg-blue-700 border-none text-white px-4 rounded-lg">+ Tambah</button>
-                </div>
-              </div>
-
-              <div className="space-y-4">
-                {tasks.length === 0 ? (
-                  <div className="text-center py-10 opacity-20 font-bold italic text-xl">Belum ada target buruan...</div>
-                ) : tasks.map(task => {
-                  const { percent } = getProgress(task);
-                  return (
-                    <div key={task.id} className="flex items-center gap-5 p-5 bg-slate-50/50 border border-slate-100 rounded-[2rem] hover:bg-white hover:shadow-xl transition-all group">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-3">
-                          <h4 className={`font-bold text-lg ${percent === 100 ? 'line-through text-slate-400' : 'text-slate-700'}`}>
-                            {task.title}
-                          </h4>
-                          <div className="hidden group-hover:flex gap-1">
-                            <button onClick={() => onEditTask(task.id)} className="text-[10px] bg-blue-100 text-blue-600 px-2 py-1 rounded-md hover:bg-blue-200">Edit</button>
-                            <button onClick={() => onDeleteTask(task.id)} className="text-[10px] bg-red-100 text-red-600 px-2 py-1 rounded-md hover:bg-red-200">Hapus</button>
-                          </div>
-                        </div>
-                        <div className="w-full bg-slate-200 h-2 mt-3 rounded-full overflow-hidden">
-                          <div className="bg-blue-500 h-full transition-all duration-1000" style={{ width: `${percent}%` }}></div>
-                        </div>
-                      </div>
-                      <button 
-                        onClick={() => onStartFocusing(task)} 
-                        className="btn bg-white hover:bg-blue-600 hover:text-white text-blue-600 border-2 border-blue-600 rounded-2xl px-6 font-bold transition-all shadow-md"
-                      >
-                        Mulai
-                      </button>
-                    </div>
-                  );
-                })}
-              </div>
+      {/* ⚔️ DAFTAR BERBURU - Dibuat lebih lebar */}
+      <div className="col-span-12 lg:col-span-8 space-y-6">
+        <div className="bg-slate-50/50 border border-slate-100 rounded-[2rem] p-6 shadow-sm min-h-[400px]">
+          <div className="flex justify-between items-center mb-6">
+            <h3 className="text-xl font-black text-slate-800">Target Aktif 🐾</h3>
+            <div className="flex gap-2 bg-white p-1.5 rounded-2xl border border-slate-200 shadow-sm">
+              <input 
+                className="bg-transparent px-4 py-1 text-sm outline-none w-48 focus:w-64 transition-all" 
+                placeholder="Lacak target baru..."
+                value={newTasksName}
+                onChange={(e) => setNewTasksName(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && onAddTask(newTasksName) && setNewTasksName("")}
+              />
+              <button onClick={() => {onAddTask(newTasksName); setNewTasksName("")}} className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-xl text-xs font-bold transition-all">
+                + Tambah
+              </button>
             </div>
           </div>
 
-          {/* SIDE INFO */}
-          <div className="col-span-12 lg:col-span-4 space-y-8">
-            <div className="bg-gradient-to-br from-orange-400 to-red-500 rounded-[2.5rem] p-8 text-center text-white shadow-xl shadow-orange-200">
-              <span className="text-5xl">🔥</span>
-              <p className="text-7xl font-black my-2">{currentStreak}</p>
-              <p className="font-bold uppercase text-xs opacity-80 tracking-widest">Day Streak</p>
-            </div>
-            
-            {/* Weekly Activity Chart (Simple) */}
-            <div className="bg-slate-900 rounded-[2.5rem] p-8 text-white shadow-2xl">
-              <h3 className="font-bold mb-6 text-xs uppercase text-slate-500 tracking-widest">Aktivitas Mingguan</h3>
-              <div className="flex items-end justify-between h-20 gap-2 mb-6">
-                {weeklyDistribution.map((val, i) => (
-                  <div 
-                    key={i} 
-                    className="flex-1 bg-blue-500 rounded-t-md hover:bg-blue-400 transition-all"
-                    style={{ height: `${val}%` }}
-                  />
-                ))}
+          <div className="grid gap-3">
+            {activeTasks.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-20 opacity-30">
+                <span className="text-6xl mb-4">🐱💤</span>
+                <p className="font-bold italic">Semua target sudah beres. Saatnya tidur siang!</p>
               </div>
-              <div className="grid grid-cols-3 gap-3">
-                {['🐾', '🔥', '⏰', '⭐', '🚀', '💎'].map((emoji, i) => (
-                  <div key={i} className="aspect-square bg-white/10 rounded-2xl flex items-center justify-center text-2xl hover:scale-110 transition-transform cursor-pointer border border-white/5">
-                    {emoji}
+            ) : activeTasks.map(task => (
+              <div key={task.id} className="flex items-center gap-4 p-4 bg-white border border-slate-100 rounded-2xl hover:shadow-lg transition-all group">
+                <div className="flex-1">
+                  <div className="flex justify-between mb-1">
+                    <h4 className="font-bold text-slate-700">{task.title}</h4>
+                    <span className="text-[10px] font-black text-blue-500 bg-blue-50 px-2 py-0.5 rounded-lg">{getProgress(task).percent}%</span>
                   </div>
-                ))}
+                  <div className="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden">
+                    <div className="bg-blue-500 h-full transition-all duration-1000" style={{ width: `${getProgress(task).percent}%` }}></div>
+                  </div>
+                </div>
+                <button 
+                  onClick={() => onStartFocusing(task)} 
+                  className="bg-slate-800 hover:bg-blue-600 text-white rounded-xl px-5 py-2 text-sm font-bold transition-all shadow-md active:scale-95"
+                >
+                  Mulai
+                </button>
               </div>
-            </div>
+            ))}
           </div>
-
         </div>
+      </div>
+
+      {/* 📅 SIDE CONTENT - Kalender & Info Tambahan */}
+      <div className="col-span-12 lg:col-span-4 space-y-6">
+  
+  <div className="bg-white border border-slate-100 rounded-[2.5rem] p-6 shadow-sm">
+    <h3 className="text-sm font-black text-slate-400 uppercase tracking-widest mb-4">Jadwal Buruan 📅</h3>
+    
+    <div className="grid grid-cols-7 gap-2 text-center text-[10px] font-black text-slate-400 mb-3">
+      <span>S</span><span>S</span><span>R</span><span>K</span><span>J</span><span>S</span><span>M</span>
+    </div>
+    
+    <div className="grid grid-cols-7 gap-2">
+      {[...Array(31)].map((_, i) => {
+        const day = i + 1;
+        const isToday = day === new Date().getDate();
+        
+        // Cek apakah ada task yang deadlinenya jatuh di tanggal ini (bulan ini)
+        const hasDeadline = tasks.some(task => {
+          if (!task.deadline) return false;
+          const deadlineDate = new Date(task.deadline).getDate();
+          const deadlineMonth = new Date(task.deadline).getMonth();
+          return deadlineDate === day && deadlineMonth === new Date().getMonth();
+        });
+
+        return (
+          <div key={i} className="relative group">
+            <div className={`aspect-square flex items-center justify-center rounded-xl text-xs font-bold transition-all cursor-default
+              ${isToday ? 'bg-blue-600 text-white shadow-lg shadow-blue-200' : 'text-slate-500 hover:bg-slate-50'}
+              ${hasDeadline && !isToday ? 'border-2 border-orange-400 text-orange-600' : ''}
+            `}>
+              {day}
+            </div>
+            {/* Dot indikator kecil di bawah angka kalau ada deadline */}
+            {hasDeadline && (
+              <span className={`absolute bottom-1 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full ${isToday ? 'bg-white' : 'bg-orange-500'}`}></span>
+            )}
+          </div>
+        );
+      })}
+    </div>
+
+    {/* Info Box di bawah Kalender */}
+    <div className="mt-6 p-4 bg-slate-50 rounded-[1.5rem] border border-slate-100">
+      <div className="flex items-center gap-3 mb-3">
+        <div className="w-2 h-2 bg-orange-400 rounded-full animate-pulse"></div>
+        <p className="text-[10px] font-black uppercase text-slate-400 tracking-tighter">Deadline Terdekat</p>
+      </div>
+      
+      {tasks.filter(t => t.deadline).length > 0 ? (
+        tasks
+        .filter(t => t.deadline)
+        .slice(0, 2) // Ambil 2 deadline terdekat
+        .map(t => (
+          <div key={t.id} className="mb-2 last:mb-0">
+            <p className="text-xs font-bold text-slate-700 truncate">{t.title}</p>
+            <p className="text-[10px] text-slate-400">{new Date(t.deadline).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' })}</p>
+          </div>
+          ))
+          ) : (
+          <p className="text-[10px] italic text-slate-400">Belum ada deadline yang diset.</p>
+          )}
+        </div>
+      </div>
+
+        {/* Widget Quote / Mood */}
+        <div className="bg-gradient-to-br from-slate-800 to-slate-900 rounded-[2rem] p-6 text-white relative overflow-hidden">
+          <div className="relative z-10">
+            <p className="text-xs font-bold opacity-50 uppercase tracking-widest mb-2">Mood Kucing</p>
+            <p className="text-sm italic font-medium">"Fokus itu seperti mengejar laser, Hunter. Jangan berkedip atau kamu kehilangan jejaknya."</p>
+            <p className="text-[10px] mt-4 font-bold text-blue-400">— Master Meow</p>
+          </div>
+          <span className="absolute -right-4 -bottom-4 text-7xl opacity-10 grayscale">🐾</span>
+        </div>
+
       </div>
     </div>
   );
 }
 
-// Reusable StatCard Component
 function StatCard({ icon, label, value, color }) {
   const themes = {
     blue: "bg-blue-50 border-blue-100 text-blue-900",
     orange: "bg-orange-50 border-orange-100 text-orange-900",
     green: "bg-green-50 border-green-100 text-green-900",
     purple: "bg-purple-50 border-purple-100 text-purple-900",
+    red: "bg-red-50 border-red-100 text-red-900", // Tema baru buat streak
   };
-
   return (
-    <div className={`p-5 rounded-[2rem] border ${themes[color]} transition-all hover:shadow-md`}>
+    <div className={`p-4 rounded-2xl border ${themes[color]} transition-all hover:shadow-md flex flex-col items-center text-center justify-center`}>
       <div className="text-xl mb-1">{icon}</div>
-      <p className="text-2xl font-black leading-tight">{value}</p>
+      <p className="text-xl font-black leading-tight">{value}</p>
       <p className="text-[10px] font-bold opacity-60 uppercase tracking-tighter">{label}</p>
     </div>
   );

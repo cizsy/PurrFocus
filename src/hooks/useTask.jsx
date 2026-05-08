@@ -1,4 +1,3 @@
-// hooks/useTasks.js
 import { useState, useEffect } from 'react';
 
 function useTasks() {
@@ -7,90 +6,89 @@ function useTasks() {
     return saved ? JSON.parse(saved) : [];
   });
 
-  // Auto-save ke localStorage
+  // 1. LOGIKA AUTO-RESET
+  useEffect(() => {
+    const today = new Date().toDateString();
+    const expiredTasks = tasks.filter(t => {
+      const taskDate = new Date(t.createdAt).toDateString();
+      return taskDate !== today;
+    });
+
+    if (expiredTasks.length > 0) {
+      const history = JSON.parse(localStorage.getItem("purrfocus_history") || "[]");
+      const newHistory = [...history, ...expiredTasks];
+      localStorage.setItem("purrfocus_history", JSON.stringify(newHistory));
+      
+      const activeTasks = tasks.filter(t => new Date(t.createdAt).toDateString() === today);
+      setTasks(activeTasks);
+    }
+  }, []);
+
+  // 2. AUTO-SAVE
   useEffect(() => {
     localStorage.setItem("purrfocus_tasks", JSON.stringify(tasks));
   }, [tasks]);
 
-  // Tambah task baru
-  const addTask = (taskName) => {
-    if (taskName.trim() === "") return false;
+  // 3. TAMBAH TASK (Sama, tapi pastikan deadline default konsisten)
+  const addTask = (taskName, category = "Umum", deadline = null) => {
+    if (!taskName || taskName.trim() === "") return false;
     const newTask = {
       id: Date.now(),
       title: taskName,
       status: "hunting",
-      subtasks: []
+      subtasks: [],
+      createdAt: new Date().toISOString(),
+      deadline: deadline || new Date().toISOString().split('T')[0], 
+      category: category,
+      notes: ""
     };
     setTasks(prev => [...prev, newTask]);
     return true;
   };
 
-  // Hapus task
+  // 4. UPDATE DETAIL (Fungsi serbaguna untuk judul, deadline, kategori)
+  const updateTaskDetail = (taskId, updates) => {
+    setTasks(prev => prev.map(t => 
+      t.id === taskId ? { ...t, ...updates } : t
+    ));
+  };
+
+  // 5. HAPUS TASK (Confirm dibuang, biar UI yang handle kalau mau pake modal nantinya)
   const deleteTask = (taskId) => {
-    if (!window.confirm("Yakin mau hapus task ini?")) return false;
     setTasks(prev => prev.filter(task => task.id !== taskId));
     return true;
   };
 
-  // Edit task title
-  const editTask = (taskId) => {
-    const currentTask = tasks.find(t => t.id === taskId);
-    if (!currentTask) return;
-    
-    const newTitle = prompt("Ubah nama task:", currentTask.title);
-    if (newTitle && newTitle.trim() !== "") {
-      setTasks(prev => prev.map(t => 
-        t.id === taskId ? { ...t, title: newTitle } : t
-      ));
-    }
-  };
-
-  // Toggle subtask completed
+  // 6. TOGGLE SUBTASK
   const toggleSubtask = (taskId, subtaskId) => {
     setTasks(prev => prev.map(task => {
       if (task.id !== taskId) return task;
-      
-      const newSubtasks = task.subtasks.map(sub =>
-        sub.id === subtaskId ? { ...sub, completed: !sub.completed } : sub
-      );
-      return { ...task, subtasks: newSubtasks };
-    }));
-  };
-
-  // Tambah subtask baru
-  const addSubtask = (taskId) => {
-    const text = prompt("Masukkan tugas yang ingin kamu kejar (subtask):");
-    if (!text) return;
-    
-    setTasks(prev => prev.map(task => {
-      if (task.id !== taskId) return task;
-      
       return {
         ...task,
-        subtasks: [...task.subtasks, { 
-          id: Date.now(), 
-          text, 
-          completed: false 
-        }]
+        subtasks: task.subtasks.map(sub =>
+          sub.id === subtaskId ? { ...sub, completed: !sub.completed } : sub
+        )
       };
     }));
   };
 
-  //edit subtask
-
-const editSubtask = (taskId, subtaskId) => {
-  const currentTask = tasks.find(t => t.id === taskId);
-  if (!currentTask) return;
-  
-  const currentSubtask = currentTask.subtasks.find(s => s.id === subtaskId);
-  if (!currentSubtask) return;
-  
-  const newText = prompt("Ubah nama subtask:", currentSubtask.text);
-  
-  if (newText && newText.trim() !== "") {
+  // 7. TAMBAH SUBTASK (Modern: Terima text langsung dari input UI)
+  const addSubtask = (taskId, text) => {
+    if (!text || text.trim() === "") return;
     setTasks(prev => prev.map(task => {
       if (task.id !== taskId) return task;
-      
+      return {
+        ...task,
+        subtasks: [...task.subtasks, { id: Date.now(), text, completed: false }]
+      };
+    }));
+  };
+
+  // 8. EDIT SUBTASK (Modern: Terima text baru dari input UI)
+  const editSubtask = (taskId, subtaskId, newText) => {
+    if (!newText || newText.trim() === "") return;
+    setTasks(prev => prev.map(task => {
+      if (task.id !== taskId) return task;
       return {
         ...task,
         subtasks: task.subtasks.map(sub => 
@@ -98,48 +96,34 @@ const editSubtask = (taskId, subtaskId) => {
         )
       };
     }));
-  }
-};
-
-  // hooks/useTasks.js
-const deleteSubtask = (taskId, subtaskId) => {
-  if (!window.confirm("Yakin hapus subtask ini?")) return;
-  
-  setTasks(prev => prev.map(task => {
-    if (task.id !== taskId) return task;
-    
-    return {
-      ...task,
-      subtasks: task.subtasks.filter(sub => sub.id !== subtaskId)
-    };
-  }));
-};
-
-
-  // Dapatkan task aktif berdasarkan ID
-  const getActiveTask = (activeTaskId) => {
-    return tasks.find(t => t.id === activeTaskId) || null;
   };
 
-  // Hitung progress task
+  // 9. DELETE SUBTASK
+  const deleteSubtask = (taskId, subtaskId) => {
+    setTasks(prev => prev.map(task => {
+      if (task.id !== taskId) return task;
+      return { ...task, subtasks: task.subtasks.filter(sub => sub.id !== subtaskId) };
+    }));
+  };
+
   const getTaskProgress = (task) => {
-    const total = task.subtasks.length;
-    const completed = task.subtasks.filter(s => s.completed).length;
+    const total = task.subtasks?.length || 0;
+    const completed = task.subtasks?.filter(s => s.completed).length || 0;
     const percentage = total === 0 ? 0 : Math.round((completed / total) * 100);
     return { total, completed, percentage };
   };
 
   return {
-    tasks,           // data tasks
-    addTask,         // fungsi tambah task
-    deleteTask,      // fungsi hapus task
-    editTask,        // fungsi edit task
-    toggleSubtask,   // fungsi toggle subtask
-    addSubtask,      // fungsi tambah subtask
-    getActiveTask,   // fungsi ambil task aktif
-    getTaskProgress,  // fungsi hitung progress
+    tasks,
+    addTask,
+    deleteTask,
+    updateTaskDetail,
+    toggleSubtask,
+    addSubtask,
     editSubtask,
     deleteSubtask,
+    getTaskProgress,
+    getActiveTask: (id) => tasks.find(t => t.id === id) || null
   };
 }
 
