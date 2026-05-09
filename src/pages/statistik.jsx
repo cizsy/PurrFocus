@@ -1,22 +1,21 @@
 import React from 'react';
 import useStats from '../hooks/useStats';
 
-function Statistik({ tasks }) {
-  // Ambil data real dari hook yang sudah kita update tadi
+function Statistik({ tasks, focusLogs }) {
   const { 
     focusTimeToday, 
     completedTasks, 
     focusScore, 
     weeklyDistribution, 
-    categoryDistribution 
-  } = useStats(tasks);
+    categoryDistribution,
+  } = useStats(tasks, focusLogs);
 
   const days = ["Sen", "Sel", "Rab", "Kam", "Jum", "Sab", "Min"];
 
   return (
     <div className="p-4 space-y-4 overflow-y-auto custom-scrollbar flex-1 bg-white">
       
-      {/* HEADER STATS - Ringkas & Padat */}
+      {/* HEADER STATS */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
         <div className="bg-slate-900 p-5 rounded-[1.5rem] text-white shadow-lg shadow-slate-200">
           <p className="text-[9px] font-black uppercase tracking-widest opacity-50 mb-1">Total Fokus</p>
@@ -24,7 +23,7 @@ function Statistik({ tasks }) {
         </div>
         <div className="bg-blue-50 p-5 rounded-[1.5rem] border border-blue-100">
           <p className="text-[9px] font-black uppercase tracking-widest text-blue-400 mb-1">Target Selesai</p>
-          <h2 className="text-2xl font-black text-blue-900">{completedTasks} <span className="text-xs font-bold opacity-40">Tasks</span></h2>
+          <h2 className="text-2xl font-black text-blue-900">{completedTasks} <span className="text-xs font-bold opacity-40 text-blue-400">Tasks</span></h2>
         </div>
         <div className="bg-orange-50 p-5 rounded-[1.5rem] border border-orange-100">
           <p className="text-[9px] font-black uppercase tracking-widest text-orange-400 mb-1">Fokus Score</p>
@@ -35,10 +34,9 @@ function Statistik({ tasks }) {
       <div className="grid grid-cols-12 gap-4">
         {/* BAR CHART: AKTIVITAS MINGGUAN */}
         <div className="col-span-12 lg:col-span-7 bg-slate-50 p-5 rounded-[2rem] border border-slate-100">
-          <h3 className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-6">Aktivitas Mingguan</h3>
+          <h3 className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-6">Aktivitas Mingguan 📊</h3>
           <div className="flex items-end justify-between h-32 px-2 gap-2">
             {weeklyDistribution.map((val, i) => {
-              // Hitung tinggi maksimal biar gak jebol container (asumsi max 120 menit)
               const height = Math.min((val / 120) * 100, 100); 
               return (
                 <div key={i} className="flex flex-col items-center gap-2 flex-1">
@@ -57,9 +55,9 @@ function Statistik({ tasks }) {
           </div>
         </div>
 
-        {/* LIST: DISTRIBUSI KATEGORI (REAL DATA) */}
+        {/* KATEGORI UTAMA (Yang Tadi Hilang) */}
         <div className="col-span-12 lg:col-span-5 bg-white border border-slate-100 p-5 rounded-[2rem] shadow-sm">
-          <h3 className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-5">Kategori Utama</h3>
+          <h3 className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-5">Kategori Utama 🐾</h3>
           <div className="space-y-4">
             {categoryDistribution.map((cat, i) => (
               <div key={i}>
@@ -77,11 +75,38 @@ function Statistik({ tasks }) {
             ))}
           </div>
         </div>
+
+        {/* RIWAYAT SESI */}
+        <div className="col-span-12 bg-slate-50 p-6 rounded-[2rem] border border-slate-100">
+          <h3 className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-6">Jejak Buruan Terakhir 📜</h3>
+          <div className="grid gap-3">
+            {focusLogs.length === 0 ? (
+              <div className="text-center py-10 opacity-30 font-bold italic">Belum ada jejak hari ini...</div>
+            ) : (
+              [...focusLogs].reverse().slice(0, 5).map((log, i) => (
+                <div key={i} className="flex justify-between items-center bg-white p-4 rounded-2xl shadow-sm border border-slate-100">
+                  <div className="flex items-center gap-4">
+                    <div className="text-xl">🐱</div>
+                    <div>
+                      <p className="text-xs font-black text-slate-700">Sesi Fokus Berhasil</p>
+                      <p className="text-[9px] text-slate-400 font-bold uppercase">
+                        {new Date(log.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="text-blue-600 font-black text-xs bg-blue-50 px-3 py-1 rounded-full">
+                    +{log.duration}m
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
       </div>
 
       {/* MEDALS / ACHIEVEMENTS */}
       <div className="bg-slate-50 p-5 rounded-[2rem] border border-slate-100">
-        <h3 className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-5">Pencapaian Hunter</h3>
+        <h3 className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-5">Pencapaian Hunter 🏆</h3>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           <Badge icon="🌅" title="Early Cat" desc="Fokus < jam 7 pagi" unlocked={true} />
           <Badge icon="🔥" title="On Fire" desc="Streak 3 hari" unlocked={true} />

@@ -1,19 +1,19 @@
-// App.jsx
 import React, { useState } from 'react';
 import useTasks from './hooks/useTask';
 import Dashboard from './pages/Dashboard';
 import Pawmodoro from './pages/Pawmodoro';
-import Tujuan from './pages/dashboardTujuan'; // Import page baru
+import Tujuan from './pages/dashboardTujuan';
 import Layout from './components/layout';
 import Statistik from './pages/statistik';
 
 function App() {
-  // 'dashboard' | 'tujuan' | 'statistik' | 'pengaturan' | 'pawmodoro'
   const [view, setView] = useState('dashboard');
   const [activeTaskId, setActiveTaskId] = useState(null);
   
   const { 
     tasks, 
+    focusLogs,
+    addFocusLog,
     addTask, 
     deleteTask, 
     editTask, 
@@ -22,46 +22,54 @@ function App() {
     getActiveTask, 
     editSubtask,
     deleteSubtask,
-    updateTaskDetail, // Pastikan ini ada di useTask.js kamu
-    getTaskProgress
+    updateTaskDetail,
+    getTaskProgress,
+    updateTaskNotes
   } = useTasks();
 
   const currentActiveTask = getActiveTask(activeTaskId);
 
-  // Navigasi ke Timer
+  // --- LOGIC YANG TADI HILANG ---
+  
   const startFocusing = (task) => {
     setActiveTaskId(task.id);
     setView('pawmodoro');
   };
 
-  // Hitung task yang belum selesai untuk info di Navbar
   const activeTasksCount = tasks.filter(t => {
     const { percentage } = getTaskProgress(t);
     return percentage < 100;
   }).length;
 
-  // --- RENDERING LOGIC ---
+  // --- RENDER LOGIC ---
 
-  // 1. Jika sedang dalam mode Fokus (Pawmodoro), tampilkan Full Screen tanpa Layout
   if (view === 'pawmodoro') {
     return (
       <Pawmodoro 
         activeTask={currentActiveTask}
         onToggleSubtask={toggleSubtask}
         onAddSubtask={addSubtask}
+        onEditSubtask={editSubtask}
         onDeleteSubtask={deleteSubtask}
+        onUpdateNotes={updateTaskNotes}
         onBack={() => setView('dashboard')}
-        onFinishSession={(taskId) => {
-          // Logika otomatis centang subtask pertama yang belum selesai
+        onFinishSession={(taskId, duration) => {
+          // 1. Catat log berdasarkan durasi nyata (misal 25 menit)
+          addFocusLog(taskId, duration); 
+          
+          // 2. Cari subtask pertama yang belum kelar, lalu centang otomatis
           const task = tasks.find(t => t.id === taskId);
-          const firstUnfinished = task?.subtasks.find(s => !s.completed);
-          if (firstUnfinished) toggleSubtask(taskId, firstUnfinished.id);
+          if (task) {
+            const firstUnfinished = task.subtasks.find(s => !s.completed);
+            if (firstUnfinished) {
+              toggleSubtask(taskId, firstUnfinished.id);
+            }
+          }
         }}
       />
     );
   }
 
-  // 2. Jika bukan mode fokus, gunakan Layout (Sidebar + Navbar)
   return (
     <Layout 
       activePage={view} 
@@ -93,12 +101,14 @@ function App() {
       {view === 'statistik' && (
        <Statistik
         tasks={tasks}
+        focusLogs={focusLogs}
        /> 
       )}
 
       {view === 'pengaturan' && (
-        <div className="p-10">
-          <h2 className="text-2xl font-bold">Halaman Pengaturan (Coming Soon)</h2>
+        <div className="p-10 text-center">
+          <h2 className="text-2xl font-black text-slate-800">PENGATURAN ⚙️</h2>
+          <p className="text-slate-400 mt-2">Sabar ya, kucingnya lagi ngerakit fitur ini...</p>
         </div>
       )}
     </Layout>

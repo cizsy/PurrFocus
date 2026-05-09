@@ -6,6 +6,11 @@ function useTasks() {
     return saved ? JSON.parse(saved) : [];
   });
 
+  const [focusLogs, setFocusLogs] = useState(() => {
+  const saved = localStorage.getItem("purrfocus_logs");
+  return saved ? JSON.parse(saved) : [];
+  });
+
   // 1. LOGIKA AUTO-RESET
   useEffect(() => {
     const today = new Date().toDateString();
@@ -28,6 +33,20 @@ function useTasks() {
   useEffect(() => {
     localStorage.setItem("purrfocus_tasks", JSON.stringify(tasks));
   }, [tasks]);
+
+  useEffect(() => {
+  localStorage.setItem("purrfocus_logs", JSON.stringify(focusLogs));
+  }, [focusLogs]);
+
+  const addFocusLog = (taskId, minutes) => {
+    const newLog = {
+      id: Date.now(),
+      taskId: taskId, // Kita simpan ID Task-nya juga!
+      date: new Date().toISOString(),
+      duration: minutes
+    };
+    setFocusLogs(prev => [...prev, newLog]);
+  };
 
   // 3. TAMBAH TASK (Sama, tapi pastikan deadline default konsisten)
   const addTask = (taskName, category = "Umum", deadline = null) => {
@@ -113,8 +132,16 @@ function useTasks() {
     return { total, completed, percentage };
   };
 
+  const updateTaskNotes = (taskId, newNotes) => {
+    setTasks(prev => prev.map (
+      task => task.id === taskId ? { ...task, notes: newNotes} : task
+    ));
+  }
+
   return {
     tasks,
+    focusLogs, 
+    addFocusLog,
     addTask,
     deleteTask,
     updateTaskDetail,
@@ -123,6 +150,7 @@ function useTasks() {
     editSubtask,
     deleteSubtask,
     getTaskProgress,
+    updateTaskNotes,
     getActiveTask: (id) => tasks.find(t => t.id === id) || null
   };
 }

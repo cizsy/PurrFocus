@@ -3,110 +3,62 @@ import toast, { Toaster } from 'react-hot-toast';
 import useSound from 'use-sound';
 
 function Timer({ activeTask, onFinishSession }) {
-  const [mode, setMode] = useState('fokus');
+  const [mode, setMode] = useState('fokus'); // 'fokus', 'short', 'long'
   const [fokusDuration, setFokusDuration] = useState(25);
   const [seconds, setSeconds] = useState(25 * 60);
   const [isActive, setIsActive] = useState(false);
   const [sessionCount, setSessionCount] = useState(0);
-  const [playFinish] = useSound('/finish.mp3', { volume: 0.5 }); // Taruh file suara di public/
+  const [playFinish] = useSound('/finish.mp3', { volume: 0.5 });
 
-  // Load session count dari localStorage
+  // 1. FIXED: Sinkronisasi Durasi (Ini yang bikin "ubah jam ke fokus" macet)
   useEffect(() => {
-    const saved = localStorage.getItem("purrfocus_sessions");
-    if (saved) setSessionCount(parseInt(saved));
-  }, []);
-
-  // Simpan session count
-  useEffect(() => {
-    localStorage.setItem("purrfocus_sessions", sessionCount);
-  }, [sessionCount]);
+    // Kita reset seconds HANYA jika timer tidak sedang berjalan
+    if (!isActive) {
+      if (mode === 'fokus') setSeconds(fokusDuration * 60);
+      else if (mode === 'short') setSeconds(5 * 60);
+      else if (mode === 'long') setSeconds(10 * 60);
+    }
+  }, [fokusDuration, mode, isActive]);
 
   const changeMode = (newMode) => {
-    if (isActive) {
-      toast.error("Timer lagi jalan! Pause dulu.");
-      return;
-    }
-    setIsActive(false);
+    // Biarkan pindah mode jika timer sedang tidak aktif
     setMode(newMode);
-    if (newMode === 'fokus') setSeconds(fokusDuration * 60);
-    else if (newMode === 'short') setSeconds(5 * 60);
-    else if (newMode === 'long') setSeconds(10 * 60);
-  };
-
-  const resetTimer = () => {
-    if (isActive) {
-      toast.error("Timer lagi jalan! Pause dulu.");
-      return;
-    }
-    if (mode === 'fokus') setSeconds(fokusDuration * 60);
-    else if (mode === 'short') setSeconds(5 * 60);
-    else setSeconds(10 * 60);
-    toast("Timer direset ⏲️");
-  };
-
-  const adjustFokusDuration = (amount) => {
-    if (isActive) {
-      toast.error("Timer lagi jalan! Pause dulu.");
-      return;
-    }
-    const newDuration = Math.max(1, Math.min(120, fokusDuration + amount));
-    setFokusDuration(newDuration);
-    if (mode === 'fokus') setSeconds(newDuration * 60);
+    setIsActive(false); // Pastikan berhenti dulu kalau pindah mode manual
   };
 
   const handleSessionEnd = () => {
-    playFinish(); // Play suara
+    playFinish();
     setIsActive(false);
     
     if (mode === 'fokus') {
       const newCount = sessionCount + 1;
       setSessionCount(newCount);
 
+      // Kirim data ke App.jsx (log menit nyata yang diselesaikan)
       if (onFinishSession && activeTask) {
-        onFinishSession(activeTask.id);
+        onFinishSession(activeTask.id, fokusDuration);
       }
       
-      toast.success(`🎉 Sesi fokus selesai! +1 mangsa`, {
-        duration: 3000,
-        icon: '🐾'
-      });
-      
+      // AUTO-BREAK LOGIC
       if (newCount % 4 === 0) {
-        toast.success("Hebat! 4 mangsa tertangkap. Waktunya Long Break! 🐾", {
-          duration: 4000,
-          icon: '🎯'
-        });
-        changeMode('long');
+        toast.success("Misi besar tuntas! Istirahat Panjang ya 👑");
+        setMode('long'); // useEffect di atas akan otomatis setSeconds(10 * 60)
       } else {
-        toast.success("Satu sesi fokus selesai. Istirahat sejenak! 🐱", {
-          duration: 3000,
-          icon: '☕'
-        });
-        changeMode('short');
+        toast.success("Satu mangsa tumbang! Break dulu ☕");
+        setMode('short'); // useEffect di atas akan otomatis setSeconds(5 * 60)
       }
     } else {
-      toast.success("Istirahat selesai. Ayo berburu lagi! 🔥", {
-        icon: '⚡'
-      });
-      changeMode('fokus');
+      // Selesai istirahat, balik ke fokus
+      toast("Kembali berburu! 🔥");
+      setMode('fokus');
     }
   };
 
-  const handleStart = () => {
-    if (!activeTask && mode === 'fokus') {
-      toast.error("Pilih satu mangsa dulu di dashboard! 🐾");
-      return;
-    }
-    setIsActive(true);
-    toast(`Mode ${mode} dimulai! Semangat! 🚀`);
-  };
-
+  // 2. TIMER CORE LOGIC
   useEffect(() => {
     let interval = null;
     if (isActive && seconds > 0) {
-      interval = setInterval(() => {
-        setSeconds((prev) => prev - 1);
-      }, 1000);
+      interval = setInterval(() => setSeconds(s => s - 1), 1000);
     } else if (isActive && seconds === 0) {
       handleSessionEnd();
     }
@@ -116,90 +68,112 @@ function Timer({ activeTask, onFinishSession }) {
   const formatTime = (secs) => {
     const mins = Math.floor(secs / 60);
     const s = secs % 60;
-    return `${mins}:${s < 10 ? '0' : ''}${s}`;
+    return `${mins < 10 ? '0' : ''}${mins} : ${s < 10 ? '0' : ''}${s}`;
   };
 
-  const disabledStyle = {
-    opacity: 0.4,
-    cursor: 'not-allowed',
-    pointerEvents: 'none'
+  // Progress Bar Logic
+  const getTotalSeconds = () => {
+    if (mode === 'fokus') return fokusDuration * 60;
+    if (mode === 'short') return 5 * 60;
+    return 10 * 60;
   };
+  const progress = ((getTotalSeconds() - seconds) / getTotalSeconds()) * 100;
 
   return (
-    <>
-      <Toaster position="top-center" reverseOrder={false} />
-      <div style={{ textAlign: 'center', backgroundColor: '#444681', padding: '30px', borderRadius: '20px', color: 'white', maxWidth: '450px', margin: '0 auto', boxShadow: '0 8px 30px rgba(0,0,0,0.2)' }}>
-        
-        {/* Session Dots Indicator */}
-        <div style={{ marginBottom: '20px' }}>
-          <p style={{ fontSize: '12px', marginBottom: '5px', color: '#ffcc00' }}>🎯 PROGRES SESI</p>
-          <div>
-            {[1, 2, 3, 4].map((i) => (
-              <div
-                key={i}
-                style={{
-                  display: 'inline-block',
-                  width: '12px',
-                  height: '12px',
-                  borderRadius: '50%',
-                  margin: '0 5px',
-                  backgroundColor: i <= (sessionCount % 4) ? '#ffcc00' : '#555',
-                  transition: 'all 0.3s ease',
-                  boxShadow: i <= (sessionCount % 4) ? '0 0 5px #ffcc00' : 'none'
-                }}
-              />
-            ))}
-          </div>
-          <p style={{ margin: '5px 0 0', fontSize: '12px' }}>{sessionCount % 4}/4 sesi menuju long break</p>
-        </div>
+    <div className="flex flex-col items-center text-white">
+      <Toaster position="top-center" />
 
-        <div style={{ margin: '20px 0', padding: '15px', border: '2px solid #ffcc00', borderRadius: '15px', backgroundColor: 'rgba(255, 204, 0, 0.1)' }}>
-          <p style={{ margin: 0, fontSize: '12px' }}>TARGET SAAT INI:</p>
-          <h3 style={{ margin: 0, color: '#ffcc00' }}>🔥 {activeTask?.title || "Belum ada task"}</h3>
-        </div>
-
-        {/* Pengatur Durasi */}
-        <div style={{ marginBottom: '20px', ...(isActive ? disabledStyle : {}) }}>
-          <p style={{ fontSize: '14px', marginBottom: '8px' }}>Atur Menit Fokus:</p>
-          <button onClick={() => adjustFokusDuration(-1)} style={{ padding: '5px 15px', cursor: 'pointer', borderRadius: '8px', border: 'none' }}>➖</button>
-          <span style={{ margin: '0 20px', fontWeight: 'bold', fontSize: '20px' }}>{fokusDuration}m</span>
-          <button onClick={() => adjustFokusDuration(1)} style={{ padding: '5px 15px', cursor: 'pointer', borderRadius: '8px', border: 'none' }}>➕</button>
-        </div>
-
-        <h2 style={{ fontSize: '14px', letterSpacing: '3px', margin: 0 }}>{mode.toUpperCase()} MODE</h2>
-        <div style={{ fontSize: '80px', fontWeight: 'bold', fontFamily: 'monospace', color: '#ffcc00', margin: '10px 0' }}>
-          {formatTime(seconds)}
-        </div>
-
-        <div style={{ marginBottom: '30px' }}>
-          <button 
-            onClick={isActive ? () => setIsActive(false) : handleStart} 
-            style={{ padding: '15px 40px', fontSize: '18px', borderRadius: '12px', cursor: 'pointer', backgroundColor: isActive ? '#ff4d4d' : '#4CAF50', color: 'white', border: 'none', fontWeight: 'bold', marginRight: '10px' }}>
-            {isActive ? "⏸️ PAUSE" : "▶️ START"}
+      {/* 🟠 MODE SELECTOR (Tambah ini biar user bisa pilih manual) */}
+      <div className="flex gap-2 mb-6 bg-white/10 p-1 rounded-2xl border border-white/5">
+        {['fokus', 'short', 'long'].map((m) => (
+          <button
+            key={m}
+            onClick={() => changeMode(m)}
+            className={`px-4 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${
+              mode === m ? 'bg-white text-[#4a7ec2]' : 'text-white opacity-40 hover:opacity-100'
+            }`}
+          >
+            {m === 'short' ? 'Kecil' : m === 'long' ? 'Besar' : 'Berburu'}
           </button>
-          
-          <button 
-            onClick={resetTimer} 
-            style={{ padding: '15px 20px', borderRadius: '12px', border: 'none', backgroundColor: '#eee', cursor: 'pointer' }}>
-            🔄 RESET
-          </button>
-        </div>
+        ))}
+      </div>
 
-        <div style={{ display: 'flex', justifyContent: 'center', gap: '10px', ...(isActive ? disabledStyle : {}) }}>
-          {['fokus', 'short', 'long'].map((m) => (
-            <button 
-              key={m}
-              onClick={() => changeMode(m)} 
-              style={{ 
-                backgroundColor: mode === m ? '#ffcc00' : '#666', 
-                border: 'none', padding: '10px 15px', borderRadius: '8px', cursor: 'pointer', color: mode === m ? 'black' : 'white', fontWeight: 'bold' 
-              }}>
-              {m === 'fokus' ? '🎯 Fokus' : m === 'short' ? '☕ Short Break' : '🌿 Long Break'}
-            </button>
+      {/* CIRCULAR PROGRESS */}
+      <div className="relative w-72 h-72 flex items-center justify-center mb-6">
+        <svg className="w-full h-full transform -rotate-90">
+          <circle cx="144" cy="144" r="130" stroke="white" strokeWidth="8" fill="transparent" className="opacity-10" />
+          <circle 
+            cx="144" cy="144" r="130" stroke="white" strokeWidth="8" fill="transparent" 
+            strokeDasharray={2 * Math.PI * 130}
+            strokeDashoffset={2 * Math.PI * 130 * (1 - progress / 100)}
+            strokeLinecap="round" className="transition-all duration-700 ease-out"
+          />
+        </svg>
+        <div className="absolute flex flex-col items-center">
+            <span className={`text-8xl transition-all duration-500 ${isActive ? 'animate-bounce' : 'opacity-50'}`}>
+              {mode === 'fokus' ? '🐱' : '😴'}
+            </span>
+        </div>
+      </div>
+
+      {/* WAKTU */}
+      <h2 className="text-8xl font-black mb-4 tracking-tighter drop-shadow-2xl font-mono">
+        {formatTime(seconds)}
+      </h2>
+
+      {/* ADJUSTMENT (Hanya untuk mode fokus) */}
+      <div className={`flex gap-3 mb-8 transition-all ${isActive || mode !== 'fokus' ? 'opacity-0 scale-90 pointer-events-none' : 'opacity-100'}`}>
+        {[-5, -1, +1, +5].map(val => (
+          <button 
+            key={val} 
+            onClick={() => setFokusDuration(d => Math.max(1, d + val))}
+            className="bg-white/10 hover:bg-white text-white hover:text-[#4a7ec2] w-12 py-2 rounded-xl text-xs font-black border border-white/10 transition-all"
+          >
+            {val > 0 ? `+${val}` : val}
+          </button>
+        ))}
+      </div>
+
+      {/* INDICATOR DOTS */}
+      <div className="mb-8 text-center bg-black/10 px-6 py-3 rounded-3xl border border-white/5">
+        <p className="text-[9px] font-black uppercase tracking-[0.3em] mb-3 opacity-40">Progress Berburu</p>
+        <div className="flex gap-3 justify-center">
+          {[1, 2, 3, 4].map((i) => (
+            <div 
+              key={i} 
+              className={`w-2.5 h-2.5 rounded-full transition-all duration-500 
+                ${i <= (sessionCount % 4) || (sessionCount > 0 && sessionCount % 4 === 0) 
+                  ? 'bg-white scale-110 shadow-[0_0_15px_rgba(255,255,255,0.8)]' 
+                  : 'bg-white/20'}`} 
+            />
           ))}
         </div>
       </div>
-    </>
+
+      {/* MAIN BUTTON */}
+      <button 
+        onClick={() => {
+          if (!activeTask && mode === 'fokus') return toast.error("Pilih mangsa dulu di dashboard! 🐾");
+          setIsActive(!isActive);
+        }}
+        className={`${isActive ? 'bg-white/20 text-white' : 'bg-white text-[#4a7ec2]'} px-20 py-5 rounded-[2.5rem] text-2xl font-black shadow-2xl hover:scale-105 active:scale-95 transition-all`}
+      >
+        {isActive ? "JEDA" : "MULAI"}
+      </button>
+
+      {/* RESET */}
+      {!isActive && (
+        <button 
+          onClick={() => {
+             setSeconds(getTotalSeconds());
+             toast("Timer diatur ulang! 🔄");
+          }} 
+          className="mt-8 text-[10px] font-black opacity-30 hover:opacity-100 uppercase tracking-[0.2em] transition-opacity"
+        >
+          Reset Timer
+        </button>
+      )}
+    </div>
   );
 }
 
