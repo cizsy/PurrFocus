@@ -141,7 +141,7 @@ function FloatingCalculator({ onClose }) {
 
   return (
     <div 
-      className="absolute bottom-20 right-8 z-60 pointer-events-none"
+      className="absolute bottom-25 left-13 z-60 pointer-events-none"
       style={{
         transform: `translate(${position.x}px, ${position.y}px)`,
         transition: isDragging ? 'none' : 'transform 0.1s ease-out' // Smooth saat dilepas

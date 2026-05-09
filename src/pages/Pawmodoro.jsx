@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import FloatingSubtask from '../components/floatingComponents/floatingSubtask';
 import FloatingCalculator from '../components/floatingComponents/calculator';
 import FloatingNotes from '../components/floatingComponents/notes';
+// Sesuaikan path import ini dengan nama file background buatanmu ya!
+import FloatingBackground from '../components/floatingComponents/background'; 
 import toast, { Toaster } from 'react-hot-toast';
 import logoLight from '../assets/logoLight.png'; 
 
@@ -16,6 +18,11 @@ function Pawmodoro({ activeTask, onFinishSession, onBack, onToggleSubtask, onAdd
   const [showSubtask, setShowSubtask] = useState(false);
   const [showNotes, setShowNotes] = useState(false);
   const [showCalc, setShowCalc] = useState(false);
+  const [showBgPicker, setShowBgPicker] = useState(false);
+  const [showMusic, setShowMusic] = useState(false);
+
+  // State Background (Default warna biru fokus)
+  const [currentBg, setCurrentBg] = useState('bg-gradient-to-br from-[#4a7ec2] to-[#2d5c94]');
 
   // --- TIMER LOGIC ---
   useEffect(() => {
@@ -34,6 +41,15 @@ function Pawmodoro({ activeTask, onFinishSession, onBack, onToggleSubtask, onAdd
     }
     return () => clearInterval(interval);
   }, [isActive, timeLeft]);
+
+  // Otomatis ganti warna kalau mode berubah (dari fokus ke istirahat atau sebaliknya)
+  useEffect(() => {
+    setCurrentBg(
+      mode === 'focus' 
+        ? 'bg-gradient-to-br from-[#4a7ec2] to-[#2d5c94]' 
+        : 'bg-gradient-to-br from-[#45a387] to-[#2b735c]'
+    );
+  }, [mode]);
 
   const handleSesiSelesai = () => {
     setIsActive(false);
@@ -57,14 +73,11 @@ function Pawmodoro({ activeTask, onFinishSession, onBack, onToggleSubtask, onAdd
   };
 
   return (
-    <div className={`h-screen w-full transition-colors duration-1000 ease-in-out relative flex flex-col items-center justify-center overflow-hidden ${
-      mode === 'focus' 
-        ? 'bg-gradient-to-br from-[#4a7ec2] to-[#2d5c94]' 
-        : 'bg-gradient-to-br from-[#45a387] to-[#2b735c]'
-    }`}>
+    // CLASS BACKGROUND SEKARANG PAKAI VARIABLE DINAMIS: ${currentBg}
+    <div className={`h-screen w-full transition-colors duration-1000 ease-in-out relative flex flex-col items-center justify-center overflow-hidden ${currentBg}`}>
       <Toaster position="top-center" toastOptions={{ style: { borderRadius: '1rem', background: '#333', color: '#fff' } }} />
       
-      {/* 1. HEADER (Di-pin ke Pojok Atas) */}
+      {/* 1. HEADER */}
       <div className="absolute top-8 left-8 right-8 flex justify-between items-start z-40 pointer-events-none">
         <div className="flex items-center pointer-events-auto">
            {logoLight ? (
@@ -81,12 +94,11 @@ function Pawmodoro({ activeTask, onFinishSession, onBack, onToggleSubtask, onAdd
         </button>
       </div>
 
-      {/* 2. MAIN VIEW (Tengah Layar yang Lega) */}
+      {/* 2. MAIN VIEW */}
       <div className="z-10 flex flex-col items-center">
         {viewMode === "focus" ? (
           <div className="flex flex-col items-center transition-transform duration-500">
             
-            {/* Circle Progress: Diperkecil jadi w-48 h-48 */}
             <div className="relative w-48 h-48 flex items-center justify-center">
               <svg className="w-full h-full transform -rotate-90 drop-shadow-[0_0_15px_rgba(255,255,255,0.2)]">
                 <circle cx="96" cy="96" r="90" stroke="rgba(255,255,255,0.1)" strokeWidth="4" fill="transparent" />
@@ -104,15 +116,12 @@ function Pawmodoro({ activeTask, onFinishSession, onBack, onToggleSubtask, onAdd
               </div>
             </div>
 
-            {/* Timer Typography: Diperkecil ke text-6xl */}
             <h2 className="text-6xl font-black text-white mt-6 tracking-tighter font-mono drop-shadow-xl leading-none">
               {formatTime(timeLeft)}
             </h2>
 
-            {/* Control Waktu & Play Button */}
             <div className="mt-6 flex flex-col items-center gap-5">
               
-              {/* Tambah/Kurang Menit */}
               <div className={`flex gap-2 transition-all duration-500 ${isActive ? 'opacity-0 pointer-events-none translate-y-2' : 'opacity-100 translate-y-0'}`}>
                 {[-5, -1, 1, 5].map(val => (
                   <button 
@@ -125,7 +134,6 @@ function Pawmodoro({ activeTask, onFinishSession, onBack, onToggleSubtask, onAdd
                 ))}
               </div>
 
-              {/* Tombol Aksi Utama: Ukuran disesuaikan */}
               <button 
                 onClick={() => {
                   if (!activeTask && mode === 'focus') return toast.error("Pilih target dulu! 🐾");
@@ -149,39 +157,35 @@ function Pawmodoro({ activeTask, onFinishSession, onBack, onToggleSubtask, onAdd
         )}
       </div>
 
-      {/* 3. TOOLBAR BAWAH (Di-pin ke Pojok Bawah) */}
+      {/* 3. TOOLBAR BAWAH */}
       <div className="absolute bottom-8 left-8 right-8 flex justify-between items-end z-40 pointer-events-none">
         
-        {/* Pojok Kiri Bawah: Productivity */}
         <div className="flex gap-2 bg-black/20 p-1.5 rounded-2xl border border-white/10 backdrop-blur-xl shadow-lg pointer-events-auto">
           <ToolbarBtn icon="📋" onClick={() => setShowSubtask(!showSubtask)} active={showSubtask} tooltip="Subtasks" />
           <ToolbarBtn icon="📓" onClick={() => setShowNotes(!showNotes)} active={showNotes} tooltip="Notes" />
-          <ToolbarBtn icon="🎵" tooltip="Music" />
-          <ToolbarBtn icon="🖼️" tooltip="Background" /> 
+          <ToolbarBtn icon="🧮" onClick={() => setShowCalc(!showCalc)} active={showCalc} tooltip="Kalkulator" />
+          <ToolbarBtn icon="🎵" onClick={() => setShowMusic(!showMusic)} active={showMusic} tooltip="Music" />
+          {/* Tombol ganti background sudah dihubungkan */}
+          <ToolbarBtn icon="🖼️" onClick={() => setShowBgPicker(!showBgPicker)} active={showBgPicker} tooltip="Background" /> 
         </div>
 
-        {/* Pojok Kanan Bawah: Modes */}
-        <div className="flex gap-3 items-center pointer-events-auto">
-          <div className="bg-black/20 p-1.5 rounded-2xl border border-white/10 backdrop-blur-xl shadow-lg">
-            <ToolbarBtn icon="🧮" onClick={() => setShowCalc(!showCalc)} active={showCalc} tooltip="Kalkulator" />
-          </div>
-          
-          <div className="flex bg-black/20 p-1.5 rounded-2xl border border-white/10 gap-1.5 backdrop-blur-xl shadow-lg">
+        <div className="flex bg-black/20 p-1.5 rounded-2xl border border-white/10 gap-1.5 backdrop-blur-xl shadow-lg pointer-events-auto">
             <ToolbarBtn icon="🔥" onClick={() => setViewMode("focus")} active={viewMode === "focus"} tooltip="Timer Mode" />
             <ToolbarBtn icon="🕒" onClick={() => setViewMode("clock")} active={viewMode === "clock"} tooltip="Clock Mode" />
-          </div>
         </div>
       </div>
 
-      {/* FLOATING COMPONENTS */}
+      {/* FLOATING COMPONENTS TERPUSAT */}
       {showSubtask && <FloatingSubtask activeTask={activeTask} onToggleSubtask={onToggleSubtask} onAddSubtask={onAddSubtask} onEditSubtask={onEditSubtask} onDeleteSubtask={onDeleteSubtask} onClose={() => setShowSubtask(false)} />}
       {showCalc && <FloatingCalculator onClose={() => setShowCalc(false)} />}
       {showNotes && <FloatingNotes activeTask={activeTask} onUpdateNotes={onUpdateNotes} onClose={() => setShowNotes(false)} />}
+      
+      {/* Ini panggil komponen buatanmu. onSelect melempar class baru ke state currentBg */}
+      {showBgPicker && <FloatingBackground onSelect={(bg) => setCurrentBg(bg)} onClose={() => setShowBgPicker(false)} />}
     </div>
   );
 }
 
-// 4. ToolbarBtn: Ukuran diturunkan agar lebih proporsional
 function ToolbarBtn({ icon, onClick, active, tooltip }) {
   return (
     <button 
@@ -198,7 +202,6 @@ function ToolbarBtn({ icon, onClick, active, tooltip }) {
   );
 }
 
-// 5. ClockView: Disesuaikan dengan desain yang baru
 function ClockView() {
   const [time, setTime] = useState(new Date());
   useEffect(() => {
