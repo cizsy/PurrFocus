@@ -1,142 +1,148 @@
-import React from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 
-// --- AREA IMPORT ASSET (IMAGE/GIF) ---
-// Semisal kamu punya folder assets/bg, contoh import-nya begini:
-// import bgPantai dari '../../assets/bg/pantai.jpg';
-// import bgLofi dari '../../assets/bg/lofi-cozy.gif'; // GIF tinggal import aja
+function FloatingMusic({ onClose }) {
+  const [videoId, setVideoId] = useState('vvThzcBfnyc'); // Default 
+  const [tempLink, setTempLink] = useState('');
+  const [isMinimized, setIsMinimized] = useState(false);
 
-// Kita buat placeholder dulu pakai URL internet biar komponen ini langsung jalan
-const bgGhibli = "https://i.pinimg.com/originals/1a/1a/2e/1a1a2e73bd88c234a66a152e9352e850.gif";
-const bgCyberpunk = "https://i.getcrooked.com/2021/04/cyberpunk-night-rain.gif";
-const bgRain = "https://media.tenor.com/t4pE5bFpZ5AAAAAC/anime-rain.gif";
+  // --- Fitur Drag & Drop (Konsisten dengan Kalkulator) ---
+  const [position, setPosition] = useState({ x: 0, y: 0 });
+  const [isDragging, setIsDragging] = useState(false);
+  const dragStartRef = useRef({ x: 0, y: 0 });
 
-function FloatingBackground({ onSelect, onClose }) {
-  
-  // -- DAFTAR PILIHAN BACKGROUND (Solid, Gradient, Image, GIF) --
-  // Ada 2 tipe input: 'class' (buat Tailwind) atau 'style' (buat Image/GIF import)
-  const backgroundPresets = [
-    // 1. Tipe Gradient (Bawaan PurrFocus)
-    { 
-      name: 'Classic Blue', 
-      type: 'class', 
-      value: 'bg-gradient-to-br from-[#4a7ec2] to-[#2d5c94]',
-      preview: 'linear-gradient(to bottom right, #4a7ec2, #2d5c94)'
-    },
-    { 
-      name: 'Forest Green', 
-      type: 'class', 
-      value: 'bg-gradient-to-br from-[#45a387] to-[#2b735c]',
-      preview: 'linear-gradient(to bottom right, #45a387, #2b735c)'
-    },
-    // 2. Tipe Solid Color Aesthetic
-    { 
-      name: 'Midnight', 
-      type: 'class', 
-      value: 'bg-[#1a1a2e]',
-      preview: '#1a1a2e'
-    },
-    { 
-      name: 'Soft Rose', 
-      type: 'class', 
-      value: 'bg-[#b35d5d]',
-      preview: '#b35d5d'
-    },
-    // 3. Tipe Image/GIF (Memakai Inline Style backgroundImage)
-    { 
-      name: 'Ghibli Room', 
-      type: 'style', 
-      // Kalau pakai import lokal, kodenya jadi: value: `url(${bgGhibli})`
-      value: `url(${bgGhibli})`,
-      preview: bgGhibli // Gambar preview di grid
-    },
-    { 
-      name: 'Cyber Rain', 
-      type: 'style', 
-      value: `url(${bgCyberpunk})`,
-      preview: bgCyberpunk
-    },
-    { 
-      name: 'Anime Rain', 
-      type: 'style', 
-      value: `url(${bgRain})`,
-      preview: bgRain
-    },
-  ];
+  const handlePointerDown = (e) => {
+    setIsDragging(true);
+    dragStartRef.current = {
+      x: e.clientX - position.x,
+      y: e.clientY - position.y
+    };
+  };
 
-  const handleSelection = (bg) => {
-    if (bg.type === 'class') {
-      // Kalau Tailwind, kirim string class-nya
-      onSelect(bg.value);
-    } else {
-      // Kalau Image/GIF, kirim object style CSS
-      // Kita tambahkan setting agar gambar menutupi layar dengan pas
-      onSelect({ 
-        backgroundImage: bg.value, 
-        backgroundSize: 'cover', 
-        backgroundPosition: 'center',
-        backgroundRepeat: 'no-repeat'
+  useEffect(() => {
+    const handlePointerMove = (e) => {
+      if (!isDragging) return;
+      setPosition({
+        x: e.clientX - dragStartRef.current.x,
+        y: e.clientY - dragStartRef.current.y
       });
+    };
+
+    const handlePointerUp = () => setIsDragging(false);
+
+    if (isDragging) {
+      window.addEventListener('pointermove', handlePointerMove);
+      window.addEventListener('pointerup', handlePointerUp);
     }
-    // Opsional: Langsung tutup picker setelah milih
-    // onClose(); 
+
+    return () => {
+      window.removeEventListener('pointermove', handlePointerMove);
+      window.removeEventListener('pointerup', handlePointerUp);
+    };
+  }, [isDragging]);
+
+  // --- Logic Extract YouTube URL ---
+  const handleUpdateLink = (e) => {
+    e.preventDefault();
+    if (!tempLink) return;
+    
+    const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
+    const match = tempLink.match(regExp);
+    
+    if (match && match[2].length === 11) {
+      setVideoId(match[2]);
+      setTempLink('');
+    } else {
+      alert("Link YouTube tidak valid ya! 🐾");
+    }
   };
 
   return (
-    // Overlay Hitam Transparan & Blur (Posisikan di tengah layar z-index tinggi)
-    <div className="absolute inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm animate-in fade-in duration-300 pointer-events-auto">
-      
-      {/* Kartu Utama */}
-      <div className="bg-white rounded-[3rem] shadow-2xl border border-slate-100 p-10 w-[600px] max-w-[90%] transition-all">
+    <div 
+      className="absolute bottom-24 left-8 z-[100] pointer-events-none"
+      style={{
+        transform: `translate(${position.x}px, ${position.y}px)`,
+        transition: isDragging ? 'none' : 'transform 0.1s ease-out'
+      }}
+    >
+      <div 
+        className={`pointer-events-auto bg-white/90 backdrop-blur-2xl shadow-2xl transition-all duration-500 ease-in-out border border-white/40 overflow-hidden ${
+          isMinimized ? 'w-14 h-14 rounded-full flex items-center justify-center' : 'w-80 rounded-[2rem] p-5'
+        }`}
+      >
         
-        {/* Header */}
-        <div className="flex justify-between items-center mb-8">
-          <div>
-            <h4 className="text-[11px] font-black uppercase tracking-[0.3em] text-slate-400">Suasana Berburu</h4>
-            <h3 className="text-xl font-black text-slate-800">Pilih Background 🖼️</h3>
-          </div>
-          <button 
-            onClick={onClose}
-            className="w-10 h-10 flex items-center justify-center rounded-full bg-slate-100 text-slate-400 hover:bg-red-50 hover:text-red-400 transition-colors"
-          >
-            ✕
-          </button>
-        </div>
-
-        {/* Grid Area (Scrollable kalau kebanyakan) */}
-        <div className="grid grid-cols-3 gap-5 max-h-[350px] overflow-y-auto pr-3 custom-scrollbar">
-          {backgroundPresets.map((bg, index) => (
-            <button
-              key={index}
-              onClick={() => handleSelection(bg)}
-              className="group relative h-28 rounded-3xl border-4 border-slate-100 hover:border-blue-300 transition-all shadow-md overflow-hidden active:scale-95"
+        {/* HEADER (Drag Handle) */}
+        <div 
+          className={`flex justify-between items-center cursor-grab active:cursor-grabbing select-none ${isMinimized ? 'w-full h-full justify-center' : ''}`}
+          onPointerDown={handlePointerDown}
+        >
+          {isMinimized ? (
+            // Tampilan saat Minimized (Cuma tombol Expand)
+            <button 
+              onClick={(e) => { e.stopPropagation(); setIsMinimized(false); }} 
+              className="w-full h-full flex items-center justify-center text-2xl hover:scale-110 transition-transform"
+              title="Buka Radio"
             >
-              {/* Preview Box */}
-              <div 
-                className="absolute inset-0 w-full h-full"
-                style={
-                  bg.type === 'style' 
-                    ? { backgroundImage: `url(${bg.preview})`, backgroundSize: 'cover', backgroundPosition: 'center' }
-                    : { background: bg.preview }
-                }
-              />
-              
-              {/* Overlay Nama saat Hover */}
-              <div className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity">
-                <span className="text-white text-[10px] font-black uppercase tracking-widest text-center p-2">
-                  {bg.name}
-                </span>
-              </div>
+              🎵
             </button>
-          ))}
+          ) : (
+            // Tampilan saat Maximized
+            <>
+              <div className="flex items-center gap-2 pointer-events-none">
+                <span className="text-xl">🎵</span>
+                <h3 className="text-xs font-black uppercase tracking-widest text-slate-700">Purr Radio</h3>
+              </div>
+              <div className="flex gap-1.5">
+                <button 
+                  onClick={(e) => { e.stopPropagation(); setIsMinimized(true); }} 
+                  className="w-6 h-6 flex items-center justify-center rounded-full bg-slate-100 text-slate-500 hover:bg-slate-200 transition-colors text-[10px]"
+                >
+                  ➖
+                </button>
+                <button 
+                  onClick={(e) => { e.stopPropagation(); onClose(); }} 
+                  className="w-6 h-6 flex items-center justify-center rounded-full bg-red-50 text-red-400 hover:bg-red-500 hover:text-white transition-colors text-[10px]"
+                >
+                  ✕
+                </button>
+              </div>
+            </>
+          )}
         </div>
 
-        {/* Footer info */}
-        <p className="text-center text-slate-300 text-[9px] font-bold uppercase tracking-widest mt-8">
-          Tip: Pilih suasana yang bikin kamu fokus, Hunter! 🐈‍⬛
-        </p>
+        {/* KONTEN UTAMA (Disembunyikan secara visual jika minimized, tapi tidak di-unmount) */}
+        <div className={`transition-all duration-500 ${isMinimized ? 'opacity-0 h-0 w-0 pointer-events-none' : 'opacity-100 mt-4'}`}>
+          
+          <form onSubmit={handleUpdateLink} className="flex gap-2 mb-4">
+            <input 
+              type="text"
+              placeholder="Tempel link YouTube di sini..."
+              value={tempLink}
+              onChange={(e) => setTempLink(e.target.value)}
+              className="flex-1 bg-slate-100 border-none rounded-xl px-4 py-2.5 text-xs outline-none focus:ring-2 focus:ring-[#4a7ec2]/50 transition-all"
+            />
+            <button type="submit" className="bg-[#4a7ec2] hover:bg-[#2d5c94] text-white text-[10px] px-4 py-2.5 rounded-xl font-black uppercase tracking-wider transition-colors active:scale-95">
+              GO
+            </button>
+          </form>
+
+          {/* Iframe Container - Selalu render, hanya berubah ukuran */}
+          <div className="relative rounded-2xl overflow-hidden bg-black aspect-video shadow-inner border border-slate-800">
+             <iframe
+                width="100%"
+                height="100%"
+                src={`https://www.youtube.com/embed/${videoId}?autoplay=1&mute=0&loop=1&playlist=${videoId}`}
+                title="YouTube music"
+                frameBorder="0"
+                allow="autoplay; encrypted-media"
+                className="absolute inset-0"
+             ></iframe>
+          </div>
+          
+        </div>
+
       </div>
     </div>
   );
 }
 
-export default FloatingBackground;
+export default FloatingMusic;

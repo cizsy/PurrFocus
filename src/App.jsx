@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import useTasks from './hooks/useTask';
+import useStats from './hooks/useStats'; // <-- JANGAN LUPA IMPORT INI YA!
 import Dashboard from './pages/Dashboard';
 import Pawmodoro from './pages/Pawmodoro';
 import Tujuan from './pages/dashboardTujuan';
@@ -10,6 +11,7 @@ function App() {
   const [view, setView] = useState('dashboard');
   const [activeTaskId, setActiveTaskId] = useState(null);
   
+  // Panggil useTasks CUKUP SATU KALI SAJA di sini
   const { 
     tasks, 
     focusLogs,
@@ -27,10 +29,11 @@ function App() {
     updateTaskNotes
   } = useTasks();
 
+  // Panggil useStats
+  const stats = useStats(tasks, focusLogs);
+
   const currentActiveTask = getActiveTask(activeTaskId);
 
-  // --- LOGIC YANG TADI HILANG ---
-  
   const startFocusing = (task) => {
     setActiveTaskId(task.id);
     setView('pawmodoro');
@@ -47,6 +50,7 @@ function App() {
     return (
       <Pawmodoro 
         activeTask={currentActiveTask}
+        sessionCount={stats.sessionCount} // <-- KIRIM DATA SESSION COUNT KE PAWMODORO
         onToggleSubtask={toggleSubtask}
         onAddSubtask={addSubtask}
         onEditSubtask={editSubtask}
@@ -102,6 +106,7 @@ function App() {
        <Statistik
         tasks={tasks}
         focusLogs={focusLogs}
+        stats={stats} // <-- Pastikan komponen Statistik menerima props ini
        /> 
       )}
 

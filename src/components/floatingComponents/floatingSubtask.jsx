@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 
 function FloatingSubtask({ 
   activeTask, 
@@ -12,6 +12,44 @@ function FloatingSubtask({
   const [newText, setNewText] = useState("");
   const [editingId, setEditingId] = useState(null);
   const [editText, setEditText] = useState("");
+
+  // --- Fitur Drag & Drop ---
+  const [position, setPosition] = useState({ x: 0, y: 0 });
+  const [isDragging, setIsDragging] = useState(false);
+  const dragStartRef = useRef({ x: 0, y: 0 });
+
+  const handlePointerDown = (e) => {
+    // Hanya aktifkan drag jika klik pada area header, bukan pada input/button
+    if (e.target.closest('button') || e.target.closest('input')) return;
+    
+    setIsDragging(true);
+    dragStartRef.current = {
+      x: e.clientX - position.x,
+      y: e.clientY - position.y
+    };
+  };
+
+  useEffect(() => {
+    const handlePointerMove = (e) => {
+      if (!isDragging) return;
+      setPosition({
+        x: e.clientX - dragStartRef.current.x,
+        y: e.clientY - dragStartRef.current.y
+      });
+    };
+
+    const handlePointerUp = () => setIsDragging(false);
+
+    if (isDragging) {
+      window.addEventListener('pointermove', handlePointerMove);
+      window.addEventListener('pointerup', handlePointerUp);
+    }
+
+    return () => {
+      window.removeEventListener('pointermove', handlePointerMove);
+      window.removeEventListener('pointerup', handlePointerUp);
+    };
+  }, [isDragging]);
 
   if (!activeTask) return null;
 
@@ -33,35 +71,54 @@ function FloatingSubtask({
   };
 
   return (
-    <div className="absolute bottom-24 left-10 z-[60] pointer-events-none">
-      <div className="w-[300px] bg-white rounded-[2rem] shadow-2xl border border-blue-100 p-5 pointer-events-auto animate-in slide-in-from-bottom-5 fade-in duration-300">
+    <div 
+      className="absolute bottom-24 left-10 z-[60] pointer-events-none"
+      style={{
+        transform: `translate(${position.x}px, ${position.y}px)`,
+        transition: isDragging ? 'none' : 'transform 0.1s ease-out'
+      }}
+    >
+      <div className="w-[300px] bg-white/90 backdrop-blur-2xl rounded-[2rem] shadow-2xl border border-white/40 p-5 pointer-events-auto animate-in slide-in-from-bottom-5 fade-in duration-300">
         
-        {/* Header */}
-        <div className="flex justify-between items-center mb-4">
-          <div>
-            <h4 className="text-[9px] font-black uppercase tracking-widest text-slate-400">Target Aktif</h4>
+        {/* Header (Bisa di-Drag) */}
+        <div 
+          className="flex justify-between items-center mb-4 cursor-grab active:cursor-grabbing select-none"
+          onPointerDown={handlePointerDown}
+        >
+          <div className="pointer-events-none">
+            <h4 className="text-[9px] font-black uppercase tracking-widest text-slate-500">Target Aktif</h4>
             <h3 className="text-xs font-black text-slate-800 line-clamp-1 truncate w-44">
               🎯 {activeTask.title}
             </h3>
           </div>
-          <button onClick={onClose} className="w-7 h-7 flex items-center justify-center rounded-full bg-slate-50 text-slate-400 hover:bg-red-50 hover:text-red-400 transition-colors text-xs">✕</button>
+          <button 
+            onClick={onClose} 
+            className="w-7 h-7 flex items-center justify-center rounded-full bg-red-50 text-red-400 hover:bg-red-500 hover:text-white transition-colors text-xs"
+            title="Tutup"
+          >
+            ✕
+          </button>
         </div>
 
         {/* Scrollable Area */}
         <div className="max-h-[200px] overflow-y-auto custom-scrollbar pr-1 space-y-2">
+          {activeTask.subtasks.length === 0 && !isAdding && (
+            <p className="text-[10px] text-center text-slate-400 italic py-2">Belum ada sub-rencana. Tambahkan mangsa baru! 🐾</p>
+          )}
+
           {activeTask.subtasks.map((sub) => (
-            <div key={sub.id} className="group flex items-center gap-2 p-2.5 rounded-xl border bg-white border-slate-100 shadow-sm transition-all">
+            <div key={sub.id} className="group flex items-center gap-2 p-2.5 rounded-xl border bg-white/50 border-white/60 shadow-sm transition-all hover:bg-white hover:shadow-md">
               <input 
                 type="checkbox" 
                 checked={sub.completed} 
                 onChange={() => onToggleSubtask(activeTask.id, sub.id)}
-                className="w-3.5 h-3.5 rounded-full border-2 border-blue-400 checked:bg-blue-500 cursor-pointer"
+                className="w-3.5 h-3.5 rounded-full border-2 border-[#4a7ec2] checked:bg-[#4a7ec2] cursor-pointer"
               />
               
               {editingId === sub.id ? (
                 <input
                   autoFocus
-                  className="flex-1 text-[12px] font-bold text-slate-700 outline-none border-b border-blue-400"
+                  className="flex-1 text-[12px] font-bold text-slate-700 outline-none border-b border-[#4a7ec2] bg-transparent"
                   value={editText}
                   onChange={(e) => setEditText(e.target.value)}
                   onKeyDown={(e) => handleEdit(e, sub.id)}
@@ -69,7 +126,7 @@ function FloatingSubtask({
                 />
               ) : (
                 <span 
-                  className={`flex-1 text-[12px] font-bold cursor-pointer ${sub.completed ? 'text-slate-400 line-through' : 'text-slate-700'}`}
+                  className={`flex-1 text-[12px] font-bold cursor-pointer transition-colors ${sub.completed ? 'text-slate-400 line-through' : 'text-slate-700'}`}
                   onClick={() => {
                     setEditingId(sub.id);
                     setEditText(sub.text);
@@ -79,18 +136,24 @@ function FloatingSubtask({
                 </span>
               )}
 
-              <button onClick={() => onDeleteSubtask(activeTask.id, sub.id)} className="opacity-0 group-hover:opacity-100 p-1 text-[10px] hover:bg-red-50 rounded">🗑️</button>
+              <button 
+                onClick={() => onDeleteSubtask(activeTask.id, sub.id)} 
+                className="opacity-0 group-hover:opacity-100 p-1.5 text-[10px] hover:bg-red-100 rounded-lg transition-colors"
+                title="Hapus"
+              >
+                🗑️
+              </button>
             </div>
           ))}
 
           {/* Inline Input untuk Tambah Baru */}
           {isAdding && (
-            <div className="flex items-center gap-2 p-2.5 rounded-xl border border-blue-200 bg-blue-50/30">
+            <div className="flex items-center gap-2 p-2.5 rounded-xl border border-[#4a7ec2]/30 bg-[#4a7ec2]/10">
               <div className="w-3.5 h-3.5 rounded-full border-2 border-slate-300" />
               <input
                 autoFocus
                 placeholder="Nama mangsa..."
-                className="flex-1 bg-transparent text-[12px] font-bold text-slate-700 outline-none"
+                className="flex-1 bg-transparent text-[12px] font-bold text-slate-700 outline-none placeholder:text-slate-400"
                 value={newText}
                 onChange={(e) => setNewText(e.target.value)}
                 onKeyDown={handleAdd}
@@ -104,7 +167,7 @@ function FloatingSubtask({
         {!isAdding && (
           <button 
             onClick={() => setIsAdding(true)}
-            className="mt-4 w-full py-2.5 rounded-xl border-2 border-dashed border-slate-100 text-slate-400 text-[10px] font-black uppercase tracking-wider hover:border-blue-300 hover:text-blue-500 hover:bg-blue-50/30 transition-all"
+            className="mt-4 w-full py-2.5 rounded-xl border-2 border-dashed border-slate-300 text-slate-500 text-[10px] font-black uppercase tracking-wider hover:border-[#4a7ec2] hover:text-[#4a7ec2] hover:bg-[#4a7ec2]/10 transition-all active:scale-95"
           >
             + Tambah Sub-rencana
           </button>
