@@ -56,20 +56,33 @@ function useStats(tasks = [], focusLogs = []) {
 
     // 5. SISTEM SKOR BARU (TOTAL XP / IKAN) 🐟
     const calculateTotalXP = () => {
-      const sessionPoints = focusLogs.length * 50; 
-      const subtaskPoints = tasks.reduce((acc, t) => 
+      
+      // DIUBAH: 1 Menit Fokus = 2 XP (Jadi kalau 25 menit Pomodoro = 50 XP, 1 menit Stopwatch = 2 XP)
+      const sessionPoints = focusLogs.reduce((acc, log) => acc + (log.duration * 2), 0); 
+      
+      const history = JSON.parse(localStorage.getItem("purrfocus_history") || "[]");
+      const allTasks = [...tasks, ...history];
+      const subtaskPoints = allTasks.reduce((acc, t) => 
         acc + (t.subtasks?.filter(s => s.completed).length || 0) * 10
       , 0);
-      const taskCompletedBonus = tasks.filter(t => t.subtasks?.every(s => s.completed) && t.subtasks.length > 0).length * 100;
+      const taskCompletedBonus = allTasks.filter(t => 
+        t.subtasks?.length > 0 && t.subtasks.every(s => s.completed)
+      ).length * 100;
+      
       return sessionPoints + subtaskPoints + taskCompletedBonus;
     };
-
     // 6. SISTEM SKOR PERSENTASE (Dikembalikan lagi!) 🎯
     const calculateScore = () => {
-      const total = tasks.reduce((acc, t) => acc + (t.subtasks?.length || 0), 0);
-      const done = tasks.reduce((acc, t) => acc + (t.subtasks?.filter(s => s.completed).length || 0), 0);
-      return total === 0 ? 0 : Math.round((done / total) * 100);
-    };
+      // 1. Ambil pengaturan yang disave user
+      const savedSettings = JSON.parse(localStorage.getItem('purrfocus_settings') || '{}');
+      // 2. Gunakan target user, kalau belum pernah disave, defaultnya 120 menit
+      const dailyTargetMinutes = savedSettings.dailyTarget || 120; 
+
+      if (totalMinutesToday === 0) return 0;
+      if (totalMinutesToday >= dailyTargetMinutes) return 100; // Maksimal 100%
+      
+      return Math.round((totalMinutesToday / dailyTargetMinutes) * 100);
+    }
 
     return {
       focusTimeToday,

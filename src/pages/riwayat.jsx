@@ -5,11 +5,23 @@ function Riwayat({ focusLogs = [] }) {
   const [activeTab, setActiveTab] = useState('misi'); // 'misi' atau 'fokus'
   const [filter, setFilter] = useState('semua'); // 'semua', 'selesai', 'gagal'
 
-  // Ambil data tugas masa lalu dari LocalStorage (hasil auto-reset useTask)
   useEffect(() => {
     const savedHistory = JSON.parse(localStorage.getItem("purrfocus_history") || "[]");
-    // Urutkan dari yang terbaru
-    const sorted = savedHistory.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+    const activeTasks = JSON.parse(localStorage.getItem("purrfocus_tasks") || "[]");
+
+    // Kita hanya ingin menampilkan tugas hari ini yang SUDAH selesai atau minimal punya progres
+    const todaysFinishedTasks = activeTasks.filter(t => {
+      const total = t.subtasks?.length || 0;
+      const done = t.subtasks?.filter(s => s.completed).length || 0;
+      return total > 0 && done === total; // Contoh: Hanya muncul jika 100% kelar
+    });
+
+    const combined = [...savedHistory, ...todaysFinishedTasks];
+    
+    // Gunakan ID unik untuk filter duplikat jika perlu
+    const uniqueHistory = Array.from(new Map(combined.map(item => [item.id, item])).values());
+
+    const sorted = uniqueHistory.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
     setHistoryTasks(sorted);
   }, []);
 

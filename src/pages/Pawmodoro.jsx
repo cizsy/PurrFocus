@@ -37,6 +37,25 @@ function Pawmodoro({
   const [currentBg, setCurrentBg] = useState('bg-gradient-to-br from-[#4a7ec2] to-[#2d5c94]');
   const isStringBg = typeof currentBg === 'string';
 
+  // --- LOGIKA SIMPAN MANUAL SAAT KELUAR ---
+  const saveProgressManually = () => {
+    if (!activeTask) return;
+    let durationMins = 0;
+    if (timerType === 'pomodoro') {
+      durationMins = Math.floor(((focusDuration * 60) - timeLeft) / 60);
+    } else {
+      durationMins = Math.floor(timeLeft / 60);
+    }
+
+    if (durationMins >= 1) {
+      onFinishSession(activeTask.id, durationMins);
+      toast.success(`Hebat! ${durationMins} menit fokusmu tersimpan. 🐾`);
+    } else {
+      toast.error("Waktu terlalu singkat (< 1 mnt) untuk dicatat.");
+    }
+    onBack(); 
+  };
+
   useEffect(() => {
     const formatTabTime = () => {
       const h = Math.floor(timeLeft / 3600);
@@ -54,6 +73,8 @@ function Pawmodoro({
     return () => { document.title = "PurrFocus 🐾"; };
   }, [timeLeft, isActive, mode]);
 
+  // --- PERBAIKAN: LOGIKA RESET WAKTU ---
+  // isActive dihapus dari array dependensi agar saat di-pause tidak me-reset waktu
   useEffect(() => {
     if (!isActive) {
       if (timerType === 'pomodoro') {
@@ -64,7 +85,8 @@ function Pawmodoro({
         setTimeLeft(0);
       }
     }
-  }, [focusDuration, mode, isActive, timerType]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [focusDuration, mode, timerType]);
 
   useEffect(() => {
     let interval = null;
@@ -92,6 +114,18 @@ function Pawmodoro({
 
   const handleSesiSelesai = () => {
     setIsActive(false);
+
+    // --- 1. FITUR BARU: Baca Pengaturan ---
+    const settings = JSON.parse(localStorage.getItem('purrfocus_settings') || '{}');
+
+    // --- 2. FITUR BARU: Bunyikan Alarm ---
+    if (settings.notifications !== false) {
+      const alarm = new Audio('https://actions.google.com/sounds/v1/alarms/beep_short.ogg');
+      alarm.volume = (settings.volume !== undefined ? settings.volume : 80) / 100;
+      alarm.play().catch(e => console.log("Browser mencegah autoplay suara:", e));
+    }
+
+    // --- LOGIKA ASLI MILIKMU ---
     if (mode === 'focus') {
       toast.success(`Sesi ${currentSession} selesai! Misi tercatat. 🐾`);
       if (onFinishSession && activeTask) onFinishSession(activeTask.id, focusDuration);
@@ -103,6 +137,12 @@ function Pawmodoro({
         setMode('break'); 
         toast("Waktunya ngemil ikan sebentar! 🐟");
       }
+
+      // --- 3. FITUR BARU: Otomatis Mulai Istirahat ---
+      if (settings.autoStartBreak) {
+        setIsActive(true); // Memaksa timer langsung jalan lagi
+      }
+
     } else {
       if (mode === 'longBreak') {
         setCurrentSession(1); 
@@ -112,15 +152,20 @@ function Pawmodoro({
         toast(`Fokus sesi ${currentSession + 1}! Ayo semangat! 🔥`);
       }
       setMode('focus');
+      // Mode fokus sengaja tidak di-auto-start agar user bisa ambil napas dulu
     }
   };
 
   const handleStopwatchFinish = () => {
     setIsActive(false);
-    const durationMins = Math.max(1, Math.round(timeLeft / 60)); 
-    toast.success(`Stopwatch dihentikan! Durasi: ${durationMins} menit. 🐾`);
+    const durationMins = Math.floor(timeLeft / 60); 
     
-    if (onFinishSession && activeTask) onFinishSession(activeTask.id, durationMins);
+    if (durationMins >= 1) {
+        toast.success(`Stopwatch dihentikan! Durasi: ${durationMins} menit. 🐾`);
+        if (onFinishSession && activeTask) onFinishSession(activeTask.id, durationMins);
+    } else {
+        toast.error("Waktu terlalu singkat untuk dicatat.");
+    }
     
     setMode('break');
     setTimerType('pomodoro'); 
@@ -128,7 +173,6 @@ function Pawmodoro({
 
   const handleBackClick = () => setShowExitConfirm(true); 
 
-  // Kalkulasi Lingkaran SVG
   const radius = 134; 
   const circumference = 2 * Math.PI * radius;
   let progress = 0;
@@ -161,16 +205,23 @@ function Pawmodoro({
       {showExitConfirm && (
         <div className="absolute inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-md animate-in fade-in duration-300">
           <div className="bg-white rounded-[2rem] p-8 max-w-sm w-full mx-4 shadow-2xl text-center transform transition-all scale-in-center">
-            <div className="text-6xl mb-4">{isActive || timeLeft > 0 ? '🙀' : '😿'}</div>
-            <h3 className="text-2xl font-black text-slate-800 mb-2">Yakin mau keluar?</h3>
+            <div className="text-6xl mb-4">{(timerType === 'stopwatch' && timeLeft >= 60) || (timerType === 'pomodoro' && (focusDuration*60 - timeLeft) >= 60) ? '🧐' : '😿'}</div>
+            <h3 className="text-2xl font-black text-slate-800 mb-2">Mau ke mana, Hunter?</h3>
             <p className="text-slate-500 font-medium mb-8">
-              {(isActive || timeLeft > 0)
-                ? "Timer kamu sudah berjalan lho! Yakin mau membatalkan sesi ini?" 
-                : "Belum mulai fokus nih, masa udah mau nyerah?"}
+              {((timerType === 'stopwatch' && timeLeft >= 60) || (timerType === 'pomodoro' && mode === 'focus' && (focusDuration*60 - timeLeft) >= 60))
+                ? "Kamu sudah fokus cukup lama. Simpan dulu hasilnya biar nggak sia-sia?"
+                : "Timer kamu masih berjalan lho! Yakin mau membatalkan sesi ini?"}
             </p>
-            <div className="flex gap-3">
-              <button onClick={() => setShowExitConfirm(false)} className="flex-1 py-3.5 rounded-2xl font-bold text-slate-600 bg-slate-100 hover:bg-slate-200 transition-colors">Batal</button>
-              <button onClick={onBack} className="flex-1 py-3.5 rounded-2xl font-bold text-white bg-red-500 hover:bg-red-600 shadow-[0_0_15px_rgba(239,68,68,0.4)] transition-all">Keluar</button>
+            <div className="flex flex-col gap-3">
+              {((timerType === 'stopwatch' && timeLeft >= 60) || (timerType === 'pomodoro' && mode === 'focus' && (focusDuration*60 - timeLeft) >= 60)) && (
+                <button onClick={saveProgressManually} className="w-full py-4 rounded-2xl font-black text-white bg-green-500 hover:bg-green-600 shadow-[0_10px_20px_rgba(34,197,94,0.3)] transition-all uppercase tracking-wider">
+                   💾 Simpan & Keluar
+                </button>
+              )}
+              <div className="flex gap-2">
+                <button onClick={() => setShowExitConfirm(false)} className="flex-1 py-3.5 rounded-2xl font-bold text-slate-600 bg-slate-100 hover:bg-slate-200 transition-colors">Batal</button>
+                <button onClick={onBack} className="flex-1 py-3.5 rounded-2xl font-bold text-white bg-red-400 hover:bg-red-500 transition-all uppercase text-xs">Buang Sesi</button>
+              </div>
             </div>
           </div>
         </div>
@@ -239,10 +290,9 @@ function Pawmodoro({
               </div>
             </div>
 
-            {/* KONTROL HORIZONTAL - DIUBAH MENJADI FLEXBOX RAPI */}
+            {/* KONTROL HORIZONTAL */}
             <div className="flex items-center justify-center gap-4 mt-2 w-full max-w-sm">
               
-              {/* SAYAP KIRI (Tombol Kurang) - Lebar tetap agar proporsional */}
               <div className="flex justify-end gap-2 w-28">
                 <div className={`flex gap-2 transition-all duration-500 ease-in-out ${timerType === 'pomodoro' && !isActive ? 'opacity-100 translate-x-0' : 'opacity-0 -translate-x-4 pointer-events-none'}`}>
                   <button onClick={() => setFocusDuration(d => Math.max(1, d - 5))} className="w-11 h-11 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 border border-white/10 text-white text-xs font-black transition-all hover:scale-110 active:scale-95">-5</button>
@@ -250,7 +300,6 @@ function Pawmodoro({
                 </div>
               </div>
 
-              {/* TENGAH (Tombol Mulai Utama) */}
               <button 
                 onClick={() => {
                   if (!activeTask && mode === 'focus') return toast.error("Pilih target dulu! 🐾");
@@ -262,17 +311,14 @@ function Pawmodoro({
                 {isActive ? '⏸ JEDA' : '▶ MULAI'}
               </button>
 
-              {/* SAYAP KANAN (Tombol Tambah atau Simpan) - Lebar tetap agar proporsional */}
               <div className="relative flex justify-start w-28 h-11">
                 
-                {/* Tombol Plus (Pomodoro) */}
                 <div className={`absolute left-0 flex gap-2 transition-all duration-500 ease-in-out ${timerType === 'pomodoro' && !isActive ? 'opacity-100 translate-x-0' : 'opacity-0 translate-x-4 pointer-events-none'}`}>
                   <button onClick={() => setFocusDuration(d => Math.max(1, d + 1))} className="w-11 h-11 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 border border-white/10 text-white text-xs font-black transition-all hover:scale-110 active:scale-95">+1</button>
                   <button onClick={() => setFocusDuration(d => Math.max(1, d + 5))} className="w-11 h-11 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 border border-white/10 text-white text-xs font-black transition-all hover:scale-110 active:scale-95">+5</button>
                 </div>
 
-                {/* Tombol Simpan (Stopwatch) */}
-                <div className={`absolute left-0 flex transition-all duration-500 ease-in-out ${timerType === 'stopwatch' && timeLeft > 0 && !isActive ? 'opacity-100 translate-x-0' : 'opacity-0 translate-x-4 pointer-events-none'}`}>
+                <div className={`absolute left-0 flex transition-all duration-500 ease-in-out ${timerType === 'stopwatch' && timeLeft >= 10 && !isActive ? 'opacity-100 translate-x-0' : 'opacity-0 translate-x-4 pointer-events-none'}`}>
                   <button 
                     onClick={handleStopwatchFinish}
                     className="bg-green-500 text-white px-5 py-0 h-11 rounded-full text-[11px] font-black shadow-[0_0_15px_rgba(34,197,94,0.4)] hover:bg-green-600 transition-all uppercase tracking-widest hover:scale-105 active:scale-95 whitespace-nowrap flex items-center"

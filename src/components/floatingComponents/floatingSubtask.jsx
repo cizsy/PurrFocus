@@ -51,7 +51,24 @@ function FloatingSubtask({
     };
   }, [isDragging]);
 
-  if (!activeTask) return null;
+  if (!activeTask) {
+    return (
+      <div 
+        style={{ transform: `translate(${position.x}px, ${position.y}px)` }}
+        className="absolute z-50 w-64 bg-white/80 backdrop-blur-xl p-5 rounded-2xl shadow-2xl border border-white/60 flex flex-col items-center justify-center text-center cursor-grab active:cursor-grabbing"
+        onPointerDown={handlePointerDown}
+      >
+        <p className="text-3xl mb-2">🙀</p>
+        <p className="text-xs font-bold text-slate-600">Pilih target mangsa dulu di Dashboard!</p>
+        <button 
+          onClick={onClose} 
+          className="mt-4 px-4 py-1.5 bg-slate-100 hover:bg-red-50 text-slate-500 hover:text-red-500 rounded-lg text-[10px] font-black tracking-wider transition-colors"
+        >
+          Tutup
+        </button>
+      </div>
+    );
+  }
 
   const handleAdd = (e) => {
     if (e.key === 'Enter' && newText.trim()) {

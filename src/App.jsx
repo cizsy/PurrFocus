@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import useTasks from './hooks/useTask';
 import useStats from './hooks/useStats'; 
-import Dashboard from './pages/Dashboard';
+// PERHATIAN: Pastikan huruf D di './pages/dashboard' sesuai dengan nama file aslimu ya!
+import Dashboard from './pages/dashboard'; 
 import Pawmodoro from './pages/Pawmodoro';
 import Tujuan from './pages/dashboardTujuan';
 import Layout from './components/layout';
@@ -31,7 +32,7 @@ function App() {
 
   const stats = useStats(tasks, focusLogs);
 
-  // --- LOGIKA PENGAMANAN (Biar nggak crash kalau fungsi hilang di useTask) ---
+  // --- LOGIKA PENGAMANAN ---
   const currentActiveTask = tasks.find(t => t.id === activeTaskId);
 
   const activeTasksCount = tasks.filter(t => {
@@ -58,11 +59,15 @@ function App() {
         onDeleteSubtask={deleteSubtask}
         onUpdateNotes={updateTaskNotes}
         onBack={() => setView('dashboard')}
+        
         onFinishSession={(taskId, duration) => {
+          // 1. Catat waktu ke riwayat (berapapun menitnya selama >= 1)
           if (addFocusLog) addFocusLog(taskId, duration); 
           
           const task = tasks.find(t => t.id === taskId);
-          if (task && toggleSubtask) {
+          
+          // 2. 🚨 CELAH DITUTUP: Syarat minimal 15 Menit untuk Centang Otomatis!
+          if (duration >= 15 && task && toggleSubtask) {
             const firstUnfinished = task.subtasks.find(s => !s.completed);
             if (firstUnfinished) toggleSubtask(taskId, firstUnfinished.id);
           }
@@ -113,6 +118,7 @@ function App() {
         <Riwayat focusLogs={focusLogs} />
       )}
 
+      {/* Sekarang Halaman Pengaturan Sudah Tersambung Penuh */}
       {view === 'pengaturan' && (
         <Pengaturan />
       )}

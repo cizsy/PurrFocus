@@ -38,17 +38,18 @@ function useTasks() {
   localStorage.setItem("purrfocus_logs", JSON.stringify(focusLogs));
   }, [focusLogs]);
 
-  const addFocusLog = (taskId, minutes) => {
+  const addFocusLog = (taskId, duration) => {
     const newLog = {
       id: Date.now(),
-      taskId: taskId, // Kita simpan ID Task-nya juga!
-      date: new Date().toISOString(),
-      duration: minutes
+      taskId,
+      duration,
+      taskTitle: tasks.find(t => t.id === taskId)?.title || "Unknown Task",
+      date: new Date().toISOString(), 
+      type: 'focus'
     };
     setFocusLogs(prev => [...prev, newLog]);
   };
 
-  // 3. TAMBAH TASK (Sama, tapi pastikan deadline default konsisten)
   const addTask = (taskName, category = "Umum", deadline = null) => {
     if (!taskName || taskName.trim() === "") return false;
     const newTask = {

@@ -1,19 +1,38 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import toast, { Toaster } from 'react-hot-toast';
 
 function Pengaturan() {
-  // State sementara untuk visual (nanti bisa dihubungkan ke LocalStorage/Context jika butuh)
-  const [volume, setVolume] = useState(80);
-  const [notifications, setNotifications] = useState(true);
-  const [autoStartBreak, setAutoStartBreak] = useState(false);
-  const [darkMode, setDarkMode] = useState(false);
+  // State sekarang dibungkus dalam satu object agar rapi
+  const [settings, setSettings] = useState({
+    volume: 80,
+    notifications: true,
+    autoStartBreak: false,
+    dailyTarget: 120, // Default 120 menit (2 jam)
+    darkMode: false
+  });
+
+  // Ambil pengaturan yang tersimpan saat komponen dimuat
+  useEffect(() => {
+    const savedSettings = JSON.parse(localStorage.getItem('purrfocus_settings'));
+    if (savedSettings) {
+      setSettings(prev => ({ ...prev, ...savedSettings }));
+    }
+  }, []);
+
+  // Fungsi untuk update nilai satu per satu
+  const handleChange = (key, value) => {
+    setSettings(prev => ({ ...prev, [key]: value }));
+  };
 
   const handleSave = () => {
+    localStorage.setItem('purrfocus_settings', JSON.stringify(settings));
     toast.success("Pengaturan berhasil disimpan! 🐾");
+    // Reload halaman otomatis agar target baru langsung teraplikasikan ke Dashboard
+    setTimeout(() => window.location.reload(), 1000);
   };
 
   const handleWipeData = () => {
-    if (window.confirm("🙀 Yakin mau menghapus SEMUA data (Tugas, Riwayat, Statistik)? Ini tidak bisa dibatalkan lho!")) {
+    if (window.confirm("🙀 Yakin mau menghapus SEMUA data (Tugas, Riwayat, Statistik, Pengaturan)? Ini tidak bisa dibatalkan lho!")) {
       localStorage.clear();
       toast.success("Semua data berhasil dihapus. Memulai lembaran baru... 🍂");
       setTimeout(() => window.location.reload(), 1500);
@@ -50,17 +69,17 @@ function Pengaturan() {
                 <p className="font-bold text-slate-700">Notifikasi Pop-up</p>
                 <p className="text-[11px] font-medium text-slate-400">Munculkan toast saat sesi selesai</p>
               </div>
-              <Toggle active={notifications} onClick={() => setNotifications(!notifications)} />
+              <Toggle active={settings.notifications} onClick={() => handleChange('notifications', !settings.notifications)} />
             </div>
 
             <div>
               <div className="flex justify-between items-center mb-2">
                 <p className="font-bold text-slate-700">Volume Suara Alarm</p>
-                <p className="text-xs font-black text-blue-500">{volume}%</p>
+                <p className="text-xs font-black text-blue-500">{settings.volume}%</p>
               </div>
               <input 
-                type="range" min="0" max="100" value={volume} 
-                onChange={(e) => setVolume(e.target.value)}
+                type="range" min="0" max="100" value={settings.volume} 
+                onChange={(e) => handleChange('volume', parseInt(e.target.value))}
                 className="w-full h-2 bg-slate-100 rounded-lg appearance-none cursor-pointer accent-blue-500"
               />
             </div>
@@ -75,12 +94,29 @@ function Pengaturan() {
           </div>
           
           <div className="space-y-6">
+            {/* TAMBAHAN: TARGET FOKUS HARIAN */}
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="font-bold text-slate-700">Target Fokus Harian</p>
+                <p className="text-[11px] font-medium text-slate-400">Durasi untuk mencapai 100% skor harian</p>
+              </div>
+              <div className="flex items-center gap-2">
+                <input 
+                  type="number" 
+                  value={settings.dailyTarget}
+                  onChange={(e) => handleChange('dailyTarget', parseInt(e.target.value) || 0)}
+                  className="w-16 bg-slate-50 border border-slate-200 text-slate-700 font-black text-center rounded-lg py-1.5 outline-none focus:border-blue-500 transition-all"
+                />
+                <span className="text-xs font-bold text-slate-400">Mnt</span>
+              </div>
+            </div>
+
             <div className="flex items-center justify-between">
               <div>
                 <p className="font-bold text-slate-700">Otomatis Mulai Istirahat</p>
                 <p className="text-[11px] font-medium text-slate-400">Langsung pindah ke mode ikan setelah fokus</p>
               </div>
-              <Toggle active={autoStartBreak} onClick={() => setAutoStartBreak(!autoStartBreak)} />
+              <Toggle active={settings.autoStartBreak} onClick={() => handleChange('autoStartBreak', !settings.autoStartBreak)} />
             </div>
 
             <div className="flex items-center justify-between opacity-50 cursor-not-allowed">
@@ -88,7 +124,7 @@ function Pengaturan() {
                 <p className="font-bold text-slate-700">Mode Gelap (Dark Mode)</p>
                 <p className="text-[11px] font-medium text-slate-400">Fitur sedang dirakit oleh kucing bengkel</p>
               </div>
-              <Toggle active={darkMode} onClick={() => {}} disabled />
+              <Toggle active={settings.darkMode} onClick={() => {}} disabled />
             </div>
           </div>
         </div>
