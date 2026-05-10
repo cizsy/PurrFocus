@@ -61,7 +61,7 @@ function Layout({ children, activePage, setPage, totalActiveTasks }) {
             <h2 className="text-2xl font-black text-slate-800 uppercase tracking-tight italic">
                 {activePage === 'dashboard' && 'Selamat pagi, Meong! 👋'}
                 {activePage === 'tujuan' && 'Pusat Perencanaan 🗺️'}
-                {activePage === 'statistik' && 'Arsip Buruan 📈'}
+                {activePage === 'statistik' && 'Paw Stats 📊'}
                 {activePage === 'riwayat' && 'Riwayat Fokus 📚'}
                 {activePage === 'pengaturan' && 'Konfigurasi ⚙️'}
             </h2>
@@ -74,7 +74,7 @@ function Layout({ children, activePage, setPage, totalActiveTasks }) {
             <img src={profil} alt="Profil" className="w-10 h-10 rounded-xl object-cover shadow-sm" />
             <div className="text-left">
               <p className="text-[16px] font-black text-slate-700 leading-none">John Doe</p>
-              <p className="text-[10px] text-blue-500 font-black uppercase tracking-tighter mt-1">Elite Hunter</p>
+              <p className="text-[10px] text-blue-500 font-black uppercase tracking-tighter mt-1">Elite Cat</p>
             </div>
           </div>
         </nav>

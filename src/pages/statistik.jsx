@@ -1,11 +1,15 @@
 import React from 'react';
 import useStats from '../hooks/useStats';
 
+// ... (Import biarkan sama)
+
 function Statistik({ tasks, focusLogs }) {
   const { 
     focusTimeToday, 
     completedTasks, 
-    focusScore, 
+    totalXP, 
+    focusScore, // <-- Panggil focusScore lagi
+    currentStreak, 
     weeklyDistribution, 
     categoryDistribution,
   } = useStats(tasks, focusLogs);
@@ -15,22 +19,40 @@ function Statistik({ tasks, focusLogs }) {
   return (
     <div className="p-4 space-y-4 overflow-y-auto custom-scrollbar flex-1 bg-white">
       
-      {/* HEADER STATS */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-        <div className="bg-slate-900 p-5 rounded-[1.5rem] text-white shadow-lg shadow-slate-200">
+      {/* HEADER STATS - Sekarang 5 Kolom agar muat semua! */}
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+        
+        {/* 1. TOTAL FOKUS */}
+        <div className="bg-slate-900 p-4 rounded-[1.5rem] text-white shadow-lg shadow-slate-200 flex flex-col justify-center">
           <p className="text-[9px] font-black uppercase tracking-widest opacity-50 mb-1">Total Fokus</p>
-          <h2 className="text-2xl font-black">{focusTimeToday}</h2>
+          <h2 className="text-xl font-black">{focusTimeToday}</h2>
         </div>
-        <div className="bg-blue-50 p-5 rounded-[1.5rem] border border-blue-100">
-          <p className="text-[9px] font-black uppercase tracking-widest text-blue-400 mb-1">Target Selesai</p>
-          <h2 className="text-2xl font-black text-blue-900">{completedTasks} <span className="text-xs font-bold opacity-40 text-blue-400">Tasks</span></h2>
+        
+        {/* 2. TARGET BERES */}
+        <div className="bg-blue-50 p-4 rounded-[1.5rem] border border-blue-100 flex flex-col justify-center">
+          <p className="text-[9px] font-black uppercase tracking-widest text-blue-400 mb-1">Target Beres</p>
+          <h2 className="text-xl font-black text-blue-900">{completedTasks} <span className="text-[10px] font-bold opacity-40 text-blue-400">Tasks</span></h2>
         </div>
-        <div className="bg-orange-50 p-5 rounded-[1.5rem] border border-orange-100">
-          <p className="text-[9px] font-black uppercase tracking-widest text-orange-400 mb-1">Fokus Score</p>
-          <h2 className="text-2xl font-black text-orange-900">{focusScore}%</h2>
+
+        {/* 3. SKOR AKURASI (%) */}
+        <div className="bg-purple-50 p-4 rounded-[1.5rem] border border-purple-100 flex flex-col justify-center">
+          <p className="text-[9px] font-black uppercase tracking-widest text-purple-400 mb-1">Skor Harian</p>
+          <h2 className="text-xl font-black text-purple-900">{focusScore}%</h2>
+        </div>
+
+        {/* 4. STREAK */}
+        <div className="bg-green-50 p-4 rounded-[1.5rem] border border-green-100 flex flex-col justify-center">
+          <p className="text-[9px] font-black uppercase tracking-widest text-green-500 mb-1">Streak 🔥</p>
+          <h2 className="text-xl font-black text-green-900">{currentStreak} <span className="text-[10px] font-bold opacity-40 text-green-500">Hari</span></h2>
+        </div>
+
+        {/* 5. TOTAL XP */}
+        <div className="bg-orange-50 p-4 rounded-[1.5rem] border border-orange-100 flex flex-col justify-center">
+          <p className="text-[9px] font-black uppercase tracking-widest text-orange-400 mb-1">Tangkapan 🐟</p>
+          <h2 className="text-xl font-black text-orange-900">{totalXP} <span className="text-[10px] font-bold opacity-40 text-orange-400">XP</span></h2>
         </div>
       </div>
-
+      
       <div className="grid grid-cols-12 gap-4">
         {/* BAR CHART: AKTIVITAS MINGGUAN */}
         <div className="col-span-12 lg:col-span-7 bg-slate-50 p-5 rounded-[2rem] border border-slate-100">
@@ -55,7 +77,7 @@ function Statistik({ tasks, focusLogs }) {
           </div>
         </div>
 
-        {/* KATEGORI UTAMA (Yang Tadi Hilang) */}
+        {/* KATEGORI UTAMA */}
         <div className="col-span-12 lg:col-span-5 bg-white border border-slate-100 p-5 rounded-[2rem] shadow-sm">
           <h3 className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-5">Kategori Utama 🐾</h3>
           <div className="space-y-4">
@@ -104,14 +126,21 @@ function Statistik({ tasks, focusLogs }) {
         </div>
       </div>
 
-      {/* MEDALS / ACHIEVEMENTS */}
+      {/* MEDALS / ACHIEVEMENTS (Sekarang Otomatis Nyala!) */}
       <div className="bg-slate-50 p-5 rounded-[2rem] border border-slate-100">
         <h3 className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-5">Pencapaian Hunter 🏆</h3>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          <Badge icon="🌅" title="Early Cat" desc="Fokus < jam 7 pagi" unlocked={true} />
-          <Badge icon="🔥" title="On Fire" desc="Streak 3 hari" unlocked={true} />
-          <Badge icon="🎯" title="Sniper" desc="5 subtask beres" unlocked={false} />
-          <Badge icon="👑" title="Legend" desc="100 jam fokus" unlocked={false} />
+          {/* Badge pertama biarin nyala gratis sebagai sambutan */}
+          <Badge icon="🌅" title="Kucing Pemula" desc="Berhasil masuk app" unlocked={true} />
+          
+          {/* Badge On Fire nyala kalau streak >= 3 hari */}
+          <Badge icon="🔥" title="On Fire" desc="Streak 3 hari" unlocked={currentStreak >= 3} />
+          
+          {/* Badge Sniper nyala kalau subtask kelar >= 5 */}
+          <Badge icon="🎯" title="Sniper" desc="5 task beres" unlocked={completedTasks >= 5} />
+          
+          {/* Badge Legend nyala kalau poin di atas 1000 XP */}
+          <Badge icon="👑" title="Legend" desc="Terkumpul 1000 XP" unlocked={totalXP >= 1000} />
         </div>
       </div>
 
@@ -121,7 +150,7 @@ function Statistik({ tasks, focusLogs }) {
 
 function Badge({ icon, title, desc, unlocked }) {
   return (
-    <div className={`p-3 rounded-2xl border flex flex-col items-center text-center transition-all ${unlocked ? 'bg-white border-slate-100 shadow-sm' : 'bg-slate-200/50 border-transparent opacity-30 grayscale'}`}>
+    <div className={`p-3 rounded-2xl border flex flex-col items-center text-center transition-all ${unlocked ? 'bg-white border-slate-100 shadow-sm hover:scale-105' : 'bg-slate-200/50 border-transparent opacity-30 grayscale'}`}>
       <span className="text-2xl mb-1">{icon}</span>
       <h4 className="text-[9px] font-black uppercase text-slate-700">{title}</h4>
       <p className="text-[8px] font-bold text-slate-400 leading-tight mt-0.5">{desc}</p>

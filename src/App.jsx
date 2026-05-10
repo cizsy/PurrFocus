@@ -1,56 +1,57 @@
 import React, { useState } from 'react';
 import useTasks from './hooks/useTask';
-import useStats from './hooks/useStats'; // <-- JANGAN LUPA IMPORT INI YA!
+import useStats from './hooks/useStats'; 
 import Dashboard from './pages/Dashboard';
 import Pawmodoro from './pages/Pawmodoro';
 import Tujuan from './pages/dashboardTujuan';
 import Layout from './components/layout';
 import Statistik from './pages/statistik';
+import Riwayat from './pages/riwayat'; 
+import Pengaturan from './pages/pengaturan';
 
 function App() {
   const [view, setView] = useState('dashboard');
   const [activeTaskId, setActiveTaskId] = useState(null);
   
-  // Panggil useTasks CUKUP SATU KALI SAJA di sini
+  // Kita tarik data dasar dari useTasks (Dikasih default [] biar aman dari crash)
   const { 
-    tasks, 
-    focusLogs,
+    tasks = [], 
+    focusLogs = [],
     addFocusLog,
     addTask, 
     deleteTask, 
     editTask, 
     toggleSubtask, 
     addSubtask,
-    getActiveTask, 
     editSubtask,
     deleteSubtask,
     updateTaskDetail,
-    getTaskProgress,
     updateTaskNotes
-  } = useTasks();
+  } = useTasks() || {};
 
-  // Panggil useStats
   const stats = useStats(tasks, focusLogs);
 
-  const currentActiveTask = getActiveTask(activeTaskId);
+  // --- LOGIKA PENGAMANAN (Biar nggak crash kalau fungsi hilang di useTask) ---
+  const currentActiveTask = tasks.find(t => t.id === activeTaskId);
+
+  const activeTasksCount = tasks.filter(t => {
+    const total = t.subtasks?.length || 0;
+    const done = t.subtasks?.filter(s => s.completed).length || 0;
+    const percentage = total === 0 ? 0 : Math.round((done / total) * 100);
+    return percentage < 100;
+  }).length;
 
   const startFocusing = (task) => {
     setActiveTaskId(task.id);
     setView('pawmodoro');
   };
 
-  const activeTasksCount = tasks.filter(t => {
-    const { percentage } = getTaskProgress(t);
-    return percentage < 100;
-  }).length;
-
   // --- RENDER LOGIC ---
-
   if (view === 'pawmodoro') {
     return (
       <Pawmodoro 
         activeTask={currentActiveTask}
-        sessionCount={stats.sessionCount} // <-- KIRIM DATA SESSION COUNT KE PAWMODORO
+        sessionCount={stats?.sessionCount || 0} 
         onToggleSubtask={toggleSubtask}
         onAddSubtask={addSubtask}
         onEditSubtask={editSubtask}
@@ -58,16 +59,12 @@ function App() {
         onUpdateNotes={updateTaskNotes}
         onBack={() => setView('dashboard')}
         onFinishSession={(taskId, duration) => {
-          // 1. Catat log berdasarkan durasi nyata (misal 25 menit)
-          addFocusLog(taskId, duration); 
+          if (addFocusLog) addFocusLog(taskId, duration); 
           
-          // 2. Cari subtask pertama yang belum kelar, lalu centang otomatis
           const task = tasks.find(t => t.id === taskId);
-          if (task) {
+          if (task && toggleSubtask) {
             const firstUnfinished = task.subtasks.find(s => !s.completed);
-            if (firstUnfinished) {
-              toggleSubtask(taskId, firstUnfinished.id);
-            }
+            if (firstUnfinished) toggleSubtask(taskId, firstUnfinished.id);
           }
         }}
       />
@@ -83,6 +80,7 @@ function App() {
       {view === 'dashboard' && (
         <Dashboard 
           tasks={tasks}
+          focusLogs={focusLogs}
           onAddTask={addTask}
           onDeleteTask={deleteTask}
           onEditTask={editTask}
@@ -93,6 +91,8 @@ function App() {
       {view === 'tujuan' && (
         <Tujuan
           tasks={tasks}
+          onAddTask={addTask}
+          onStartFocusing={startFocusing}
           updateTaskDetail={updateTaskDetail}
           onDeleteTask={deleteTask}
           onAddSubtask={addSubtask}
@@ -103,18 +103,18 @@ function App() {
       )}
 
       {view === 'statistik' && (
-       <Statistik
-        tasks={tasks}
-        focusLogs={focusLogs}
-        stats={stats} // <-- Pastikan komponen Statistik menerima props ini
-       /> 
+        <Statistik
+         tasks={tasks}
+         focusLogs={focusLogs}
+        /> 
+      )}
+
+      {view === 'riwayat' && (
+        <Riwayat focusLogs={focusLogs} />
       )}
 
       {view === 'pengaturan' && (
-        <div className="p-10 text-center">
-          <h2 className="text-2xl font-black text-slate-800">PENGATURAN ⚙️</h2>
-          <p className="text-slate-400 mt-2">Sabar ya, kucingnya lagi ngerakit fitur ini...</p>
-        </div>
+        <Pengaturan />
       )}
     </Layout>
   );

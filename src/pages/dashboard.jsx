@@ -1,9 +1,12 @@
 import React, { useState } from 'react';
 import useStats from '../hooks/useStats'; 
 
-function Dashboard({ tasks = [], onAddTask, onStartFocusing, onDeleteTask, onEditTask }) {
+// 1. TAMBAHKAN prop `focusLogs = []` di sini 👇
+function Dashboard({ tasks = [], focusLogs = [], onAddTask, onStartFocusing, onDeleteTask, onEditTask }) {
   const [newTasksName, setNewTasksName] = useState("");
-  const { focusTimeToday, sessionCount, completedTasks, focusScore, currentStreak } = useStats(tasks);
+  
+  // 2. Panggil focusLogs di useStats, dan tarik totalXP 👇
+  const { focusTimeToday, sessionCount, completedTasks, focusScore, currentStreak, totalXP } = useStats(tasks, focusLogs);
 
   const getProgress = (task) => {
     const total = task.subtasks?.length || 0;
@@ -15,20 +18,21 @@ function Dashboard({ tasks = [], onAddTask, onStartFocusing, onDeleteTask, onEdi
   const activeTasks = tasks.filter(task => getProgress(task).percent < 100);
 
   return (
-    // Margin dirapatkan dari p-10 ke p-6
     <div className="p-6 grid grid-cols-12 gap-6 bg-white min-h-full">
       
-      {/* 📊 STATS GRID - Sekarang ada 5 kartu (Streak masuk sini) */}
-      <div className="col-span-12 grid grid-cols-2 md:grid-cols-5 gap-3">
+      {/* 📊 STATS GRID - Diubah jadi 6 Kolom (md:grid-cols-6) biar muat semua */}
+      <div className="col-span-12 grid grid-cols-2 md:grid-cols-6 gap-3">
         <StatCard icon="⏱️" label="Fokus" value={focusTimeToday} color="blue" />
         <StatCard icon="⚔️" label="Sesi" value={sessionCount} color="orange" />
         <StatCard icon="✅" label="Selesai" value={completedTasks} color="green" />
         <StatCard icon="🎯" label="Skor" value={`${focusScore}%`} color="purple" />
-        {/* Streak versi ramping */}
         <StatCard icon="🔥" label="Streak" value={currentStreak} color="red" />
+        
+        {/* KOTAK BARU UNTUK XP! */}
+        <StatCard icon="🐟" label="XP Point" value={totalXP} color="yellow" /> 
       </div>
 
-      {/* ⚔️ DAFTAR BERBURU - Dibuat lebih lebar */}
+      {/* ⚔️ DAFTAR BERBURU */}
       <div className="col-span-12 lg:col-span-8 space-y-6">
         <div className="bg-slate-50/50 border border-slate-100 rounded-[2rem] p-6 shadow-sm min-h-[400px]">
           <div className="flex justify-between items-center mb-6">
@@ -50,8 +54,8 @@ function Dashboard({ tasks = [], onAddTask, onStartFocusing, onDeleteTask, onEdi
           <div className="grid gap-3">
             {activeTasks.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-20 opacity-30">
-                <span className="text-6xl mb-4">🐱💤</span>
-                <p className="font-bold italic">Semua target sudah beres. Saatnya tidur siang!</p>
+                <span className="text-6xl mb-4">🐱</span>
+                <p className="font-bold italic">Belum ada target hari ini, tambahkan targetmu sekarang!</p>
               </div>
             ) : activeTasks.map(task => (
               <div key={task.id} className="flex items-center gap-4 p-4 bg-white border border-slate-100 rounded-2xl hover:shadow-lg transition-all group">
@@ -76,92 +80,82 @@ function Dashboard({ tasks = [], onAddTask, onStartFocusing, onDeleteTask, onEdi
         </div>
       </div>
 
-      {/* 📅 SIDE CONTENT - Kalender & Info Tambahan */}
+      {/* 📅 SIDE CONTENT - Kalender */}
       <div className="col-span-12 lg:col-span-4 space-y-6">
-  
-  <div className="bg-white border border-slate-100 rounded-[2.5rem] p-6 shadow-sm">
-    <h3 className="text-sm font-black text-slate-400 uppercase tracking-widest mb-4">Jadwal Buruan 📅</h3>
-    
-    <div className="grid grid-cols-7 gap-2 text-center text-[10px] font-black text-slate-400 mb-3">
-      <span>S</span><span>S</span><span>R</span><span>K</span><span>J</span><span>S</span><span>M</span>
-    </div>
-    
-    <div className="grid grid-cols-7 gap-2">
-      {[...Array(31)].map((_, i) => {
-        const day = i + 1;
-        const isToday = day === new Date().getDate();
-        
-        // Cek apakah ada task yang deadlinenya jatuh di tanggal ini (bulan ini)
-        const hasDeadline = tasks.some(task => {
-          if (!task.deadline) return false;
-          const deadlineDate = new Date(task.deadline).getDate();
-          const deadlineMonth = new Date(task.deadline).getMonth();
-          return deadlineDate === day && deadlineMonth === new Date().getMonth();
-        });
+        <div className="bg-white border border-slate-100 rounded-[2.5rem] p-6 shadow-sm">
+          <h3 className="text-sm font-black text-slate-400 uppercase tracking-widest mb-4">Jadwal Buruan 📅</h3>
+          
+          <div className="grid grid-cols-7 gap-2 text-center text-[10px] font-black text-slate-400 mb-3">
+            <span>S</span><span>S</span><span>R</span><span>K</span><span>J</span><span>S</span><span>M</span>
+          </div>
+          
+          <div className="grid grid-cols-7 gap-2">
+            {[...Array(31)].map((_, i) => {
+              const day = i + 1;
+              const isToday = day === new Date().getDate();
+              
+              const hasDeadline = tasks.some(task => {
+                if (!task.deadline) return false;
+                const deadlineDate = new Date(task.deadline).getDate();
+                const deadlineMonth = new Date(task.deadline).getMonth();
+                return deadlineDate === day && deadlineMonth === new Date().getMonth();
+              });
 
-        return (
-          <div key={i} className="relative group">
-            <div className={`aspect-square flex items-center justify-center rounded-xl text-xs font-bold transition-all cursor-default
-              ${isToday ? 'bg-blue-600 text-white shadow-lg shadow-blue-200' : 'text-slate-500 hover:bg-slate-50'}
-              ${hasDeadline && !isToday ? 'border-2 border-orange-400 text-orange-600' : ''}
-            `}>
-              {day}
+              return (
+                <div key={i} className="relative group">
+                  <div className={`aspect-square flex items-center justify-center rounded-xl text-xs font-bold transition-all cursor-default
+                    ${isToday ? 'bg-blue-600 text-white shadow-lg shadow-blue-200' : 'text-slate-500 hover:bg-slate-50'}
+                    ${hasDeadline && !isToday ? 'border-2 border-orange-400 text-orange-600' : ''}
+                  `}>
+                    {day}
+                  </div>
+                  {hasDeadline && (
+                    <span className={`absolute bottom-1 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full ${isToday ? 'bg-white' : 'bg-orange-500'}`}></span>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Info Box di bawah Kalender */}
+          <div className="mt-6 p-4 bg-slate-50 rounded-[1.5rem] border border-slate-100">
+            <div className="flex items-center gap-3 mb-3">
+              <div className="w-2 h-2 bg-orange-400 rounded-full animate-pulse"></div>
+              <p className="text-[10px] font-black uppercase text-slate-400 tracking-tighter">Deadline Terdekat</p>
             </div>
-            {/* Dot indikator kecil di bawah angka kalau ada deadline */}
-            {hasDeadline && (
-              <span className={`absolute bottom-1 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full ${isToday ? 'bg-white' : 'bg-orange-500'}`}></span>
-            )}
+            
+            {tasks.filter(t => t.deadline).length > 0 ? (
+              tasks
+              .filter(t => t.deadline)
+              .sort((a, b) => new Date(a.deadline) - new Date(b.deadline)) // Diurutkan dari yang terdekat
+              .slice(0, 2)
+              .map(t => (
+                <div key={t.id} className="mb-2 last:mb-0">
+                  <p className="text-xs font-bold text-slate-700 truncate">{t.title}</p>
+                  <p className="text-[10px] text-slate-400">{new Date(t.deadline).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' })}</p>
+                </div>
+                ))
+                ) : (
+                <p className="text-[10px] italic text-slate-400">Belum ada deadline yang diset.</p>
+                )}
           </div>
-        );
-      })}
-    </div>
-
-    {/* Info Box di bawah Kalender */}
-    <div className="mt-6 p-4 bg-slate-50 rounded-[1.5rem] border border-slate-100">
-      <div className="flex items-center gap-3 mb-3">
-        <div className="w-2 h-2 bg-orange-400 rounded-full animate-pulse"></div>
-        <p className="text-[10px] font-black uppercase text-slate-400 tracking-tighter">Deadline Terdekat</p>
-      </div>
-      
-      {tasks.filter(t => t.deadline).length > 0 ? (
-        tasks
-        .filter(t => t.deadline)
-        .slice(0, 2) // Ambil 2 deadline terdekat
-        .map(t => (
-          <div key={t.id} className="mb-2 last:mb-0">
-            <p className="text-xs font-bold text-slate-700 truncate">{t.title}</p>
-            <p className="text-[10px] text-slate-400">{new Date(t.deadline).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' })}</p>
-          </div>
-          ))
-          ) : (
-          <p className="text-[10px] italic text-slate-400">Belum ada deadline yang diset.</p>
-          )}
         </div>
-      </div>
-
-        {/* Widget Quote / Mood */}
-        <div className="bg-gradient-to-br from-slate-800 to-slate-900 rounded-[2rem] p-6 text-white relative overflow-hidden">
-          <div className="relative z-10">
-            <p className="text-xs font-bold opacity-50 uppercase tracking-widest mb-2">Mood Kucing</p>
-            <p className="text-sm italic font-medium">"Fokus itu seperti mengejar laser, Hunter. Jangan berkedip atau kamu kehilangan jejaknya."</p>
-            <p className="text-[10px] mt-4 font-bold text-blue-400">— Master Meow</p>
-          </div>
-          <span className="absolute -right-4 -bottom-4 text-7xl opacity-10 grayscale">🐾</span>
-        </div>
-
       </div>
     </div>
   );
 }
 
+// Komponen Pembantu
 function StatCard({ icon, label, value, color }) {
   const themes = {
     blue: "bg-blue-50 border-blue-100 text-blue-900",
     orange: "bg-orange-50 border-orange-100 text-orange-900",
     green: "bg-green-50 border-green-100 text-green-900",
     purple: "bg-purple-50 border-purple-100 text-purple-900",
-    red: "bg-red-50 border-red-100 text-red-900", // Tema baru buat streak
+    red: "bg-red-50 border-red-100 text-red-900",
+    yellow: "bg-yellow-50 border-yellow-100 text-yellow-900", // Tema kuning untuk XP
   };
+  
   return (
     <div className={`p-4 rounded-2xl border ${themes[color]} transition-all hover:shadow-md flex flex-col items-center text-center justify-center`}>
       <div className="text-xl mb-1">{icon}</div>

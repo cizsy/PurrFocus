@@ -13,11 +13,9 @@ function useStats(tasks = [], focusLogs = []) {
     const mins = totalMinutesToday % 60;
     const focusTimeToday = `${hours}j ${mins}m`;
 
-    // 2. Logika Streak (Berurutan Berapa Hari)
+    // 2. Logika Streak
     const calculateStreak = () => {
       if (focusLogs.length === 0) return 0;
-
-      // Ambil tanggal unik, urutkan dari yang terbaru
       const dates = [...new Set(focusLogs.map(l => new Date(l.date).toDateString()))]
         .map(d => new Date(d))
         .sort((a, b) => b - a);
@@ -25,7 +23,6 @@ function useStats(tasks = [], focusLogs = []) {
       const yesterday = new Date();
       yesterday.setDate(yesterday.getDate() - 1);
       
-      // Jika log terakhir bukan hari ini ATAU kemarin, streak putus
       if (dates[0].toDateString() !== todayStr && dates[0].toDateString() !== yesterday.toDateString()) {
         return 0;
       }
@@ -33,16 +30,13 @@ function useStats(tasks = [], focusLogs = []) {
       let streak = 1;
       for (let i = 0; i < dates.length - 1; i++) {
         const diff = (dates[i] - dates[i+1]) / (1000 * 60 * 60 * 24);
-        if (diff <= 1.1) { // Selisih 1 hari (dikasih toleransi dikit)
-          streak++;
-        } else {
-          break;
-        }
+        if (diff <= 1.1) streak++;
+        else break;
       }
       return streak;
     };
 
-    // 3. Grafik Mingguan (7 Hari Terakhir)
+    // 3. Grafik Mingguan 
     const weeklyDistribution = Array(7).fill(0).map((_, i) => {
       const d = new Date();
       d.setDate(d.getDate() - (6 - i));
@@ -60,30 +54,43 @@ function useStats(tasks = [], focusLogs = []) {
       return { label: cat, value: val, color: getCatColor(cat) };
     });
 
+    // 5. SISTEM SKOR BARU (TOTAL XP / IKAN) 🐟
+    const calculateTotalXP = () => {
+      const sessionPoints = focusLogs.length * 50; 
+      const subtaskPoints = tasks.reduce((acc, t) => 
+        acc + (t.subtasks?.filter(s => s.completed).length || 0) * 10
+      , 0);
+      const taskCompletedBonus = tasks.filter(t => t.subtasks?.every(s => s.completed) && t.subtasks.length > 0).length * 100;
+      return sessionPoints + subtaskPoints + taskCompletedBonus;
+    };
+
+    // 6. SISTEM SKOR PERSENTASE (Dikembalikan lagi!) 🎯
+    const calculateScore = () => {
+      const total = tasks.reduce((acc, t) => acc + (t.subtasks?.length || 0), 0);
+      const done = tasks.reduce((acc, t) => acc + (t.subtasks?.filter(s => s.completed).length || 0), 0);
+      return total === 0 ? 0 : Math.round((done / total) * 100);
+    };
+
     return {
       focusTimeToday,
-      sessionCount, // Sekarang dikirim!
-      currentStreak: calculateStreak(), // Sekarang dikirim!
+      sessionCount,
+      currentStreak: calculateStreak(),
       weeklyDistribution,
       categoryDistribution,
       completedTasks: tasks.filter(t => t.subtasks?.every(s => s.completed) && t.subtasks.length > 0).length,
-      focusScore: calculateScore(tasks)
+      
+      // KEDUANYA DIKIRIMKAN DI SINI:
+      totalXP: calculateTotalXP(),
+      focusScore: calculateScore() 
     };
   }, [tasks, focusLogs]);
 
   return stats;
 }
 
-// Helper (Warna & Score) tetap sama
 const getCatColor = (cat) => {
   const colors = { Belajar: "bg-blue-500", Kerja: "bg-purple-500", Hobby: "bg-orange-500" };
   return colors[cat] || "bg-slate-400";
-};
-
-const calculateScore = (tasks) => {
-  const total = tasks.reduce((acc, t) => acc + (t.subtasks?.length || 0), 0);
-  const done = tasks.reduce((acc, t) => acc + (t.subtasks?.filter(s => s.completed).length || 0), 0);
-  return total === 0 ? 0 : Math.round((done / total) * 100);
 };
 
 export default useStats;
