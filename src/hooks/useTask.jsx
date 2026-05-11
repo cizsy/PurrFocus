@@ -11,7 +11,6 @@ function useTasks() {
   return saved ? JSON.parse(saved) : [];
   });
 
-  // 1. LOGIKA AUTO-RESET
   useEffect(() => {
     const today = new Date().toDateString();
     const expiredTasks = tasks.filter(t => {
@@ -29,7 +28,6 @@ function useTasks() {
     }
   }, []);
 
-  // 2. AUTO-SAVE
   useEffect(() => {
     localStorage.setItem("purrfocus_tasks", JSON.stringify(tasks));
   }, [tasks]);
@@ -66,14 +64,13 @@ function useTasks() {
     return true;
   };
 
-  // 4. UPDATE DETAIL (Fungsi serbaguna untuk judul, deadline, kategori)
   const updateTaskDetail = (taskId, updates) => {
     setTasks(prev => prev.map(t => 
       t.id === taskId ? { ...t, ...updates } : t
     ));
   };
 
-  // 5. HAPUS TASK (Confirm dibuang, biar UI yang handle kalau mau pake modal nantinya)
+
   const deleteTask = (taskId) => {
     setTasks(prev => prev.filter(task => task.id !== taskId));
     return true;

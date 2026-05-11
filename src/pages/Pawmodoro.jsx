@@ -6,6 +6,7 @@ import FloatingBackground from '../components/floatingComponents/background';
 import toast, { Toaster } from 'react-hot-toast';
 import FloatingMusic from '../components/floatingComponents/music';
 import logoLight from '../assets/logoLight.png';
+import alarm from '../assets/alarm.mp3';
 
 function Pawmodoro({ 
   activeTask, 
@@ -36,8 +37,8 @@ function Pawmodoro({
 
   const [currentBg, setCurrentBg] = useState('bg-gradient-to-br from-[#4a7ec2] to-[#2d5c94]');
   const isStringBg = typeof currentBg === 'string';
-
-  // --- LOGIKA SIMPAN MANUAL SAAT KELUAR ---
+  const audioRef = useRef(new Audio(alarm));
+  
   const saveProgressManually = () => {
     if (!activeTask) return;
     let durationMins = 0;
@@ -56,51 +57,52 @@ function Pawmodoro({
     onBack(); 
   };
 
-  useEffect(() => {
-    const formatTabTime = () => {
-      const h = Math.floor(timeLeft / 3600);
-      const m = Math.floor((timeLeft % 3600) / 60);
-      const s = timeLeft % 60;
-      if (h > 0) return `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
-      return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
-    };
-    
-    if (isActive) {
-      document.title = `${formatTabTime()} - ${mode === 'focus' ? '🔥 Fokus' : '🐟 Istirahat'}`;
+// EFFECT 1: Update Judul Tab (Sudah oke, biarkan saja)
+useEffect(() => {
+  const formatTabTime = () => {
+    const h = Math.floor(timeLeft / 3600);
+    const m = Math.floor((timeLeft % 3600) / 60);
+    const s = timeLeft % 60;
+    if (h > 0) return `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+    return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+  };
+  
+  if (isActive) {
+    document.title = `${formatTabTime()} - ${mode === 'focus' ? '🔥 Fokus' : '🐟 Istirahat'}`;
+  } else {
+    document.title = "PurrFocus 🐾";
+  }
+  return () => { document.title = "Pawmodoro 🐾"; };
+}, [timeLeft, isActive, mode]);
+
+
+useEffect(() => {
+  if (!isActive) {
+    if (timerType === 'pomodoro') {
+      if (mode === 'focus') setTimeLeft(focusDuration * 60);
+      else if (mode === 'break') setTimeLeft(5 * 60); 
+      else if (mode === 'longBreak') setTimeLeft(15 * 60); 
+    } else if (timerType === 'stopwatch' && timeLeft === 0) {
+      setTimeLeft(0);
+    }
+  }
+  
+}, [mode, timerType]); 
+
+
+useEffect(() => {
+  let interval = null;
+  if (isActive) {
+    if (timerType === 'pomodoro' && timeLeft <= 0) {
+      handleSesiSelesai();
     } else {
-      document.title = "PurrFocus 🐾";
+      interval = setInterval(() => {
+        setTimeLeft(prev => timerType === 'pomodoro' ? prev - 1 : prev + 1);
+      }, 1000);
     }
-    return () => { document.title = "PurrFocus 🐾"; };
-  }, [timeLeft, isActive, mode]);
-
-  // --- PERBAIKAN: LOGIKA RESET WAKTU ---
-  // isActive dihapus dari array dependensi agar saat di-pause tidak me-reset waktu
-  useEffect(() => {
-    if (!isActive) {
-      if (timerType === 'pomodoro') {
-        if (mode === 'focus') setTimeLeft(focusDuration * 60);
-        else if (mode === 'break') setTimeLeft(5 * 60); 
-        else if (mode === 'longBreak') setTimeLeft(15 * 60); 
-      } else {
-        setTimeLeft(0);
-      }
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [focusDuration, mode, timerType]);
-
-  useEffect(() => {
-    let interval = null;
-    if (isActive) {
-      if (timerType === 'pomodoro' && timeLeft <= 0) {
-        handleSesiSelesai();
-      } else {
-        interval = setInterval(() => {
-          setTimeLeft(prev => timerType === 'pomodoro' ? prev - 1 : prev + 1);
-        }, 1000);
-      }
-    }
-    return () => clearInterval(interval);
-  }, [isActive, timeLeft, timerType]);
+  }
+  return () => clearInterval(interval);
+}, [isActive, timeLeft, timerType]);
 
   useEffect(() => {
     if (typeof currentBg === 'string') {
@@ -115,17 +117,14 @@ function Pawmodoro({
   const handleSesiSelesai = () => {
     setIsActive(false);
 
-    // --- 1. FITUR BARU: Baca Pengaturan ---
     const settings = JSON.parse(localStorage.getItem('purrfocus_settings') || '{}');
 
-    // --- 2. FITUR BARU: Bunyikan Alarm ---
     if (settings.notifications !== false) {
       const alarm = new Audio('https://actions.google.com/sounds/v1/alarms/beep_short.ogg');
       alarm.volume = (settings.volume !== undefined ? settings.volume : 80) / 100;
       alarm.play().catch(e => console.log("Browser mencegah autoplay suara:", e));
     }
 
-    // --- LOGIKA ASLI MILIKMU ---
     if (mode === 'focus') {
       toast.success(`Sesi ${currentSession} selesai! Misi tercatat. 🐾`);
       if (onFinishSession && activeTask) onFinishSession(activeTask.id, focusDuration);
@@ -138,23 +137,32 @@ function Pawmodoro({
         toast("Waktunya ngemil ikan sebentar! 🐟");
       }
 
-      // --- 3. FITUR BARU: Otomatis Mulai Istirahat ---
+  
       if (settings.autoStartBreak) {
-        setIsActive(true); // Memaksa timer langsung jalan lagi
+        setIsActive(true);
       }
 
     } else {
       if (mode === 'longBreak') {
         setCurrentSession(1); 
-        toast("Siklus baru dimulai! Siap berburu lagi? 🔥");
+        toast("Siklus baru dimulai! Siap berburu lagi? ");
       } else {
         setCurrentSession(prev => prev + 1); 
-        toast(`Fokus sesi ${currentSession + 1}! Ayo semangat! 🔥`);
+        toast(`Fokus sesi ${currentSession + 1}! Ayo semangat! `);
       }
       setMode('focus');
-      // Mode fokus sengaja tidak di-auto-start agar user bisa ambil napas dulu
     }
   };
+
+  const adjustTime = (amountMins) => {
+  setFocusDuration(prev => {
+    const newDuration = Math.max(1, prev + amountMins);
+    if (!isActive && mode === 'focus' && timerType === 'pomodoro') {
+      setTimeLeft(newDuration * 60);
+    }
+    return newDuration;
+  });
+};
 
   const handleStopwatchFinish = () => {
     setIsActive(false);
