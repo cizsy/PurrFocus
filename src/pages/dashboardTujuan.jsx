@@ -42,7 +42,6 @@ function Tujuan({
 
   return (
     <div className="p-4 flex-1 overflow-y-auto custom-scrollbar bg-white relative">
-      {/* INPUT UTAMA */}
       <div className="mb-4 bg-slate-50 p-3 rounded-2xl border border-slate-100">
         <div className="flex gap-2">
           <input 
@@ -91,7 +90,6 @@ function Tujuan({
                   />
                 </div>
 
-                {/* AREA KANAN HEADER */}
                 <div className="flex items-center gap-2 border-l pl-3 border-slate-50">
                   <input 
                     type="date"
@@ -144,7 +142,6 @@ function Tujuan({
                         )}
                       </div>
                       
-                      {/* TOMBOL HAPUS YANG BENAR */}
                       <button 
                         onClick={() => setDeleteTarget({ taskId: task.id, subId: sub.id })}
                         className="opacity-0 group-hover/item:opacity-100 text-[8px] text-red-300 hover:text-red-500 font-bold px-2"
@@ -173,14 +170,13 @@ function Tujuan({
         })}
       </div>
 
-      {/* 🚨 POP-UP KONFIRMASI HAPUS ESTETIK 🚨 */}
       {deleteTarget.taskId && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/40 backdrop-blur-sm animate-in fade-in duration-200">
           <div className="bg-white p-6 rounded-[2rem] shadow-2xl w-72 text-center border border-white scale-100 animate-in zoom-in-95 duration-200">
             <div className="text-5xl mb-3 drop-shadow-sm">🙀</div>
-            <h3 className="text-lg font-black text-slate-800 mb-1">Hapus Langkah?</h3>
+            <h3 className="text-lg font-black text-slate-800 mb-1">Hapus Subtask?</h3>
             <p className="text-xs text-slate-500 font-medium mb-6 leading-relaxed">
-              Langkah yang sudah dihapus tidak bisa dikembalikan lagi lho!
+              Subtask yang sudah dihapus tidak bisa dikembalikan lagi lho!
             </p>
             <div className="flex gap-2">
               <button
@@ -192,7 +188,7 @@ function Tujuan({
               <button
                 onClick={() => {
                   onDeleteSubtask(deleteTarget.taskId, deleteTarget.subId);
-                  setDeleteTarget({ taskId: null, subId: null }); // Tutup modal setelah hapus
+                  setDeleteTarget({ taskId: null, subId: null });
                 }}
                 className="flex-1 py-3 rounded-xl font-black text-[11px] uppercase tracking-wider text-white bg-red-500 hover:bg-red-600 shadow-[0_5px_15px_rgba(239,68,68,0.3)] transition-all active:scale-95"
               >
