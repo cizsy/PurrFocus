@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import FloatingSubtask from '../components/floatingComponents/floatingSubtask';
 import FloatingCalculator from '../components/floatingComponents/calculator';
 import FloatingNotes from '../components/floatingComponents/notes';
@@ -22,20 +22,18 @@ function Pawmodoro({
   const [mode, setMode] = useState('focus'); 
   const [currentSession, setCurrentSession] = useState(1); 
   const [timerType, setTimerType] = useState('pomodoro'); 
-  
   const [focusDuration, setFocusDuration] = useState(25);
   const [timeLeft, setTimeLeft] = useState(25 * 60);
   const [isActive, setIsActive] = useState(false);
   const [viewMode, setViewMode] = useState("focus");
-
   const [showSubtask, setShowSubtask] = useState(false);
   const [showNotes, setShowNotes] = useState(false);
   const [showCalc, setShowCalc] = useState(false);
   const [showBgPicker, setShowBgPicker] = useState(false);
   const [showMusic, setShowMusic] = useState(false);
   const [showExitConfirm, setShowExitConfirm] = useState(false);
-
   const [currentBg, setCurrentBg] = useState('bg-gradient-to-br from-[#4a7ec2] to-[#2d5c94]');
+  
   const isStringBg = typeof currentBg === 'string';
   const audioRef = useRef(new Audio(alarm));
   
@@ -57,52 +55,48 @@ function Pawmodoro({
     onBack(); 
   };
 
-// EFFECT 1: Update Judul Tab (Sudah oke, biarkan saja)
-useEffect(() => {
-  const formatTabTime = () => {
-    const h = Math.floor(timeLeft / 3600);
-    const m = Math.floor((timeLeft % 3600) / 60);
-    const s = timeLeft % 60;
-    if (h > 0) return `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
-    return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
-  };
-  
-  if (isActive) {
-    document.title = `${formatTabTime()} - ${mode === 'focus' ? '🔥 Fokus' : '🐟 Istirahat'}`;
-  } else {
-    document.title = "PurrFocus 🐾";
-  }
-  return () => { document.title = "Pawmodoro 🐾"; };
-}, [timeLeft, isActive, mode]);
-
-
-useEffect(() => {
-  if (!isActive) {
-    if (timerType === 'pomodoro') {
-      if (mode === 'focus') setTimeLeft(focusDuration * 60);
-      else if (mode === 'break') setTimeLeft(5 * 60); 
-      else if (mode === 'longBreak') setTimeLeft(15 * 60); 
-    } else if (timerType === 'stopwatch' && timeLeft === 0) {
-      setTimeLeft(0);
-    }
-  }
-  
-}, [mode, timerType]); 
-
-
-useEffect(() => {
-  let interval = null;
-  if (isActive) {
-    if (timerType === 'pomodoro' && timeLeft <= 0) {
-      handleSesiSelesai();
+  useEffect(() => {
+    const formatTabTime = () => {
+      const h = Math.floor(timeLeft / 3600);
+      const m = Math.floor((timeLeft % 3600) / 60);
+      const s = timeLeft % 60;
+      if (h > 0) return `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+      return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+    };
+    
+    if (isActive) {
+      document.title = `${formatTabTime()} - ${mode === 'focus' ? '🔥 Fokus' : '🐟 Istirahat'}`;
     } else {
-      interval = setInterval(() => {
-        setTimeLeft(prev => timerType === 'pomodoro' ? prev - 1 : prev + 1);
-      }, 1000);
+      document.title = "PurrFocus 🐾";
     }
-  }
-  return () => clearInterval(interval);
-}, [isActive, timeLeft, timerType]);
+    return () => { document.title = "PurrFocus 🐾"; };
+  }, [timeLeft, isActive, mode]);
+
+  useEffect(() => {
+    if (!isActive) {
+      if (timerType === 'pomodoro') {
+        if (mode === 'focus') setTimeLeft(focusDuration * 60);
+        else if (mode === 'break') setTimeLeft(5 * 60); 
+        else if (mode === 'longBreak') setTimeLeft(15 * 60); 
+      } else if (timerType === 'stopwatch' && timeLeft === 0) {
+        setTimeLeft(0);
+      }
+    }
+  }, [mode, timerType]); 
+
+  useEffect(() => {
+    let interval = null;
+    if (isActive) {
+      if (timerType === 'pomodoro' && timeLeft <= 0) {
+        handleSesiSelesai();
+      } else {
+        interval = setInterval(() => {
+          setTimeLeft(prev => timerType === 'pomodoro' ? prev - 1 : prev + 1);
+        }, 1000);
+      }
+    }
+    return () => clearInterval(interval);
+  }, [isActive, timeLeft, timerType]);
 
   useEffect(() => {
     if (typeof currentBg === 'string') {
@@ -116,13 +110,11 @@ useEffect(() => {
 
   const handleSesiSelesai = () => {
     setIsActive(false);
-
     const settings = JSON.parse(localStorage.getItem('purrfocus_settings') || '{}');
 
     if (settings.notifications !== false) {
-      const alarm = new Audio('https://actions.google.com/sounds/v1/alarms/beep_short.ogg');
-      alarm.volume = (settings.volume !== undefined ? settings.volume : 80) / 100;
-      alarm.play().catch(e => console.log("Browser mencegah autoplay suara:", e));
+      audioRef.current.volume = (settings.volume !== undefined ? settings.volume : 80) / 100;
+      audioRef.current.play().catch(e => console.log("Audio Error:", e));
     }
 
     if (mode === 'focus') {
@@ -137,58 +129,50 @@ useEffect(() => {
         toast("Waktunya ngemil ikan sebentar! 🐟");
       }
 
-  
       if (settings.autoStartBreak) {
         setIsActive(true);
       }
-
     } else {
       if (mode === 'longBreak') {
         setCurrentSession(1); 
-        toast("Siklus baru dimulai! Siap berburu lagi? ");
+        toast("Siklus baru dimulai! Siap berburu lagi? 🔥");
       } else {
         setCurrentSession(prev => prev + 1); 
-        toast(`Fokus sesi ${currentSession + 1}! Ayo semangat! `);
+        toast(`Fokus sesi ${currentSession + 1}! Ayo semangat! 🔥`);
       }
       setMode('focus');
     }
   };
 
   const adjustTime = (amountMins) => {
-  setFocusDuration(prev => {
-    const newDuration = Math.max(1, prev + amountMins);
-    if (!isActive && mode === 'focus' && timerType === 'pomodoro') {
-      setTimeLeft(newDuration * 60);
-    }
-    return newDuration;
-  });
-};
+    setFocusDuration(prev => {
+      const newDuration = Math.max(1, prev + amountMins);
+      if (!isActive && mode === 'focus' && timerType === 'pomodoro') {
+        setTimeLeft(newDuration * 60);
+      }
+      return newDuration;
+    });
+  };
 
   const handleStopwatchFinish = () => {
     setIsActive(false);
     const durationMins = Math.floor(timeLeft / 60); 
-    
     if (durationMins >= 1) {
         toast.success(`Stopwatch dihentikan! Durasi: ${durationMins} menit. 🐾`);
         if (onFinishSession && activeTask) onFinishSession(activeTask.id, durationMins);
     } else {
         toast.error("Waktu terlalu singkat untuk dicatat.");
     }
-    
     setMode('break');
     setTimerType('pomodoro'); 
   };
-
-  const handleBackClick = () => setShowExitConfirm(true); 
 
   const radius = 134; 
   const circumference = 2 * Math.PI * radius;
   let progress = 0;
   
   if (timerType === 'pomodoro') {
-    let currentTargetSecs = focusDuration * 60;
-    if (mode === 'break') currentTargetSecs = 5 * 60;
-    if (mode === 'longBreak') currentTargetSecs = 15 * 60;
+    let currentTargetSecs = mode === 'focus' ? focusDuration * 60 : mode === 'break' ? 300 : 900;
     progress = ((currentTargetSecs - timeLeft) / currentTargetSecs) * 100;
   } else {
     progress = ((timeLeft % 60) / 60) * 100;
@@ -209,7 +193,6 @@ useEffect(() => {
     >
       <Toaster position="top-center" />
       
-      {/* MODAL KELUAR */}
       {showExitConfirm && (
         <div className="absolute inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-md animate-in fade-in duration-300">
           <div className="bg-white rounded-[2rem] p-8 max-w-sm w-full mx-4 shadow-2xl text-center transform transition-all scale-in-center">
@@ -235,23 +218,19 @@ useEffect(() => {
         </div>
       )}
 
-      {/* HEADER */}
       <div className="absolute top-8 left-8 right-8 flex justify-between items-start z-40 pointer-events-none">
         <div className="mb-5 px-2">
           <img src={logoLight} alt="PurrFocus Logo" className="w-40 object-contain" />
         </div>
         <button 
-          onClick={handleBackClick} 
+          onClick={() => setShowExitConfirm(true)} 
           className="pointer-events-auto group flex items-center gap-2 text-white/60 hover:text-white text-[10px] font-black tracking-[0.2em] uppercase transition-all bg-black/10 hover:bg-black/20 px-5 py-2.5 rounded-full backdrop-blur-md border border-white/10 hover:border-red-400/50 hover:bg-red-500/20"
         >✕ Keluar</button>
       </div>
 
-      {/* MAIN VIEW */}
       <div className="z-10 flex flex-col items-center w-full max-w-lg">
         {viewMode === "focus" ? (
           <div className="flex flex-col items-center animate-in fade-in zoom-in-95 duration-500 w-full">
-            
-            {/* INFO ATAS: Sesi & Target */}
             <div className="mb-6 flex flex-col items-center gap-2 h-20 justify-end">
               <span className={`px-4 py-1.5 rounded-full text-[10px] font-black tracking-widest uppercase backdrop-blur-md border border-white/20 shadow-lg ${mode === 'focus' ? 'bg-white/20 text-white' : 'bg-[#45a387]/50 text-white'}`}>
                 {mode === 'focus' ? `🔥 Sesi Berburu (${currentSession}/${maxSessions})` : mode === 'longBreak' ? '😴 Istirahat Panjang' : '🐟 Istirahat Pendek'}
@@ -268,7 +247,6 @@ useEffect(() => {
               )}
             </div>
 
-            {/* TOGGLE MODE POMODORO / STOPWATCH */}
             <div className="h-10 mb-4 flex items-center justify-center transition-all duration-500">
               <div className={`flex bg-black/20 p-1 rounded-full border border-white/10 backdrop-blur-md transition-all duration-500 ease-in-out ${isActive || (timerType==='stopwatch' && timeLeft > 0) ? 'opacity-0 scale-90 pointer-events-none' : 'opacity-100 scale-100'}`}>
                 <button onClick={() => setTimerType('pomodoro')} className={`px-4 py-1.5 rounded-full text-[10px] font-black uppercase transition-all ${timerType === 'pomodoro' ? 'bg-white text-slate-800 shadow-sm' : 'text-white/60 hover:text-white'}`}>⏳ Pomodoro</button>
@@ -276,7 +254,6 @@ useEffect(() => {
               </div>
             </div>
 
-            {/* LINGKARAN TIMER */}
             <div className="relative w-72 h-72 flex items-center justify-center mb-6">
               <svg className="absolute inset-0 w-full h-full transform -rotate-90 drop-shadow-[0_0_15px_rgba(255,255,255,0.2)]" viewBox="0 0 288 288">
                 <circle cx="144" cy="144" r={radius} stroke="rgba(255,255,255,0.1)" strokeWidth="4" fill="transparent" />
@@ -287,7 +264,6 @@ useEffect(() => {
                   strokeLinecap="round" className="transition-all duration-1000 ease-in-out"
                 />
               </svg>
-              
               <div className="absolute inset-0 flex flex-col items-center justify-center z-10 text-white cursor-default">
                  <div className="text-4xl mb-2 drop-shadow-md transition-transform hover:scale-110">
                    {mode === 'focus' ? '🐈‍⬛' : '🐟'}
@@ -298,45 +274,38 @@ useEffect(() => {
               </div>
             </div>
 
-            {/* KONTROL HORIZONTAL */}
             <div className="flex items-center justify-center gap-4 mt-2 w-full max-w-sm">
-              
               <div className="flex justify-end gap-2 w-28">
                 <div className={`flex gap-2 transition-all duration-500 ease-in-out ${timerType === 'pomodoro' && !isActive ? 'opacity-100 translate-x-0' : 'opacity-0 -translate-x-4 pointer-events-none'}`}>
-                  <button onClick={() => setFocusDuration(d => Math.max(1, d - 5))} className="w-11 h-11 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 border border-white/10 text-white text-xs font-black transition-all hover:scale-110 active:scale-95">-5</button>
-                  <button onClick={() => setFocusDuration(d => Math.max(1, d - 1))} className="w-11 h-11 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 border border-white/10 text-white text-xs font-black transition-all hover:scale-110 active:scale-95">-1</button>
+                  <button onClick={() => adjustTime(-5)} className="w-11 h-11 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 border border-white/10 text-white text-xs font-black transition-all hover:scale-110 active:scale-95">-5</button>
+                  <button onClick={() => adjustTime(-1)} className="w-11 h-11 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 border border-white/10 text-white text-xs font-black transition-all hover:scale-110 active:scale-95">-1</button>
                 </div>
               </div>
 
               <button 
                 onClick={() => {
                   if (!activeTask && mode === 'focus') return toast.error("Pilih target dulu! 🐾");
+                  audioRef.current.play().then(() => {
+                    audioRef.current.pause();
+                    audioRef.current.currentTime = 0;
+                  }).catch(() => {});
                   setIsActive(!isActive);
                 }} 
                 className="z-20 bg-white px-8 py-3.5 rounded-full text-lg font-black shadow-[0_0_20px_rgba(255,255,255,0.3)] hover:shadow-[0_0_30px_rgba(255,255,255,0.5)] transition-all w-48 tracking-widest uppercase hover:scale-105 active:scale-95 shrink-0"
-                style={{ color: isStringBg && mode === 'focus' ? '#4a7ec2' : '#45a387' }}
+                style={{ color: mode === 'focus' ? '#4a7ec2' : '#45a387' }}
               >
                 {isActive ? '⏸ JEDA' : '▶ MULAI'}
               </button>
 
               <div className="relative flex justify-start w-28 h-11">
-                
                 <div className={`absolute left-0 flex gap-2 transition-all duration-500 ease-in-out ${timerType === 'pomodoro' && !isActive ? 'opacity-100 translate-x-0' : 'opacity-0 translate-x-4 pointer-events-none'}`}>
-                  <button onClick={() => setFocusDuration(d => Math.max(1, d + 1))} className="w-11 h-11 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 border border-white/10 text-white text-xs font-black transition-all hover:scale-110 active:scale-95">+1</button>
-                  <button onClick={() => setFocusDuration(d => Math.max(1, d + 5))} className="w-11 h-11 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 border border-white/10 text-white text-xs font-black transition-all hover:scale-110 active:scale-95">+5</button>
+                  <button onClick={() => adjustTime(1)} className="w-11 h-11 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 border border-white/10 text-white text-xs font-black transition-all hover:scale-110 active:scale-95">+1</button>
+                  <button onClick={() => adjustTime(5)} className="w-11 h-11 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 border border-white/10 text-white text-xs font-black transition-all hover:scale-110 active:scale-95">+5</button>
                 </div>
-
                 <div className={`absolute left-0 flex transition-all duration-500 ease-in-out ${timerType === 'stopwatch' && timeLeft >= 10 && !isActive ? 'opacity-100 translate-x-0' : 'opacity-0 translate-x-4 pointer-events-none'}`}>
-                  <button 
-                    onClick={handleStopwatchFinish}
-                    className="bg-green-500 text-white px-5 py-0 h-11 rounded-full text-[11px] font-black shadow-[0_0_15px_rgba(34,197,94,0.4)] hover:bg-green-600 transition-all uppercase tracking-widest hover:scale-105 active:scale-95 whitespace-nowrap flex items-center"
-                  >
-                    ⏹ Simpan
-                  </button>
+                  <button onClick={handleStopwatchFinish} className="bg-green-500 text-white px-5 py-0 h-11 rounded-full text-[11px] font-black shadow-[0_0_15px_rgba(34,197,94,0.4)] hover:bg-green-600 transition-all uppercase tracking-widest flex items-center">⏹ Simpan</button>
                 </div>
-
               </div>
-
             </div>
           </div>
         ) : (
@@ -344,7 +313,6 @@ useEffect(() => {
         )}
       </div>
 
-      {/* 3. TOOLBAR */}
       <div className="absolute bottom-8 left-8 right-8 flex justify-between items-end z-40 pointer-events-none">
         <div className="flex gap-2 bg-black/20 p-1.5 rounded-2xl border border-white/10 backdrop-blur-xl pointer-events-auto shadow-lg">
           <ToolbarBtn icon="📋" onClick={() => setShowSubtask(!showSubtask)} active={showSubtask} tooltip="Sub-Rencana" />
@@ -353,14 +321,12 @@ useEffect(() => {
           <ToolbarBtn icon="🎵" onClick={() => setShowMusic(!showMusic)} active={showMusic} tooltip="Musik Lofi" />
           <ToolbarBtn icon="🖼️" onClick={() => setShowBgPicker(!showBgPicker)} active={showBgPicker} tooltip="Ganti Suasana" /> 
         </div>
-
         <div className="flex bg-black/20 p-1.5 rounded-2xl border border-white/10 gap-1.5 backdrop-blur-xl pointer-events-auto shadow-lg">
             <ToolbarBtn icon="🔥" onClick={() => setViewMode("focus")} active={viewMode === "focus"} tooltip="Mode Fokus" />
             <ToolbarBtn icon="🕒" onClick={() => setViewMode("clock")} active={viewMode === "clock"} tooltip="Mode Jam" />
         </div>
       </div>
 
-      {/* RENDER COMPONENTS */}
       {showSubtask && <FloatingSubtask activeTask={activeTask} onToggleSubtask={onToggleSubtask} onAddSubtask={onAddSubtask} onEditSubtask={onEditSubtask} onDeleteSubtask={onDeleteSubtask} onClose={() => setShowSubtask(false)} />}
       {showCalc && <FloatingCalculator onClose={() => setShowCalc(false)} />}
       {showNotes && <FloatingNotes activeTask={activeTask} onUpdateNotes={onUpdateNotes} onClose={() => setShowNotes(false)} />}
@@ -372,16 +338,8 @@ useEffect(() => {
 
 function ToolbarBtn({ icon, onClick, active, tooltip }) {
   return (
-    <button 
-      onClick={onClick}
-      title={tooltip}
-      className={`w-10 h-10 flex items-center justify-center rounded-xl transition-all duration-300 ${
-        active 
-          ? 'bg-white shadow-[0_0_10px_rgba(255,255,255,0.4)] scale-105 text-gray-800' 
-          : 'bg-transparent hover:bg-white/20 text-white/70 hover:text-white hover:scale-105 active:scale-95'
-      }`}
-    >
-      <span className="text-lg drop-shadow-sm">{icon}</span>
+    <button onClick={onClick} title={tooltip} className={`w-10 h-10 flex items-center justify-center rounded-xl transition-all duration-300 ${active ? 'bg-white scale-105 text-gray-800 shadow-lg' : 'text-white/70 hover:bg-white/20 hover:text-white'}`}>
+      <span className="text-lg">{icon}</span>
     </button>
   );
 }
@@ -393,14 +351,12 @@ function ClockView() {
     return () => clearInterval(t);
   }, []);
   return (
-    <div className="text-center opacity-95 flex flex-col items-center animate-in fade-in zoom-in-95 duration-500">
-      <h2 className="text-7xl font-black text-white leading-none font-mono tracking-tight drop-shadow-2xl">
+    <div className="text-center animate-in fade-in zoom-in-95 duration-500">
+      <h2 className="text-7xl font-black text-white font-mono drop-shadow-2xl">
         {time.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
       </h2>
-      <div className="mt-5 px-5 py-2 bg-black/10 border border-white/10 rounded-full backdrop-blur-sm">
-        <p className="text-white/80 text-[10px] font-black uppercase tracking-[0.3em]">
-          {time.toDateString()}
-        </p>
+      <div className="mt-5 px-5 py-2 bg-black/10 border border-white/10 rounded-full inline-block backdrop-blur-sm">
+        <p className="text-white/80 text-[10px] font-black uppercase tracking-[0.3em]">{time.toDateString()}</p>
       </div>
     </div>
   );

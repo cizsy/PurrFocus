@@ -2,30 +2,26 @@ import React, { useState, useEffect } from 'react';
 
 function Riwayat({ focusLogs = [] }) {
   const [historyTasks, setHistoryTasks] = useState([]);
-  const [activeTab, setActiveTab] = useState('misi'); // 'misi' atau 'fokus'
-  const [filter, setFilter] = useState('semua'); // 'semua', 'selesai', 'gagal'
+  const [activeTab, setActiveTab] = useState('misi');
+  const [filter, setFilter] = useState('semua');
+  const [expandedTask, setExpandedTask] = useState(null); // State untuk melihat detail catatan
 
   useEffect(() => {
     const savedHistory = JSON.parse(localStorage.getItem("purrfocus_history") || "[]");
     const activeTasks = JSON.parse(localStorage.getItem("purrfocus_tasks") || "[]");
 
-    // Kita hanya ingin menampilkan tugas hari ini yang SUDAH selesai atau minimal punya progres
     const todaysFinishedTasks = activeTasks.filter(t => {
       const total = t.subtasks?.length || 0;
       const done = t.subtasks?.filter(s => s.completed).length || 0;
-      return total > 0 && done === total; // Contoh: Hanya muncul jika 100% kelar
+      return total > 0 && done === total;
     });
 
     const combined = [...savedHistory, ...todaysFinishedTasks];
-    
-    // Gunakan ID unik untuk filter duplikat jika perlu
     const uniqueHistory = Array.from(new Map(combined.map(item => [item.id, item])).values());
-
     const sorted = uniqueHistory.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
     setHistoryTasks(sorted);
   }, []);
 
-  // --- LOGIKA GROUPING BERDASARKAN TANGGAL ---
   const groupTasksByDate = (tasks) => {
     return tasks.reduce((acc, task) => {
       const date = new Date(task.createdAt).toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
@@ -44,7 +40,6 @@ function Riwayat({ focusLogs = [] }) {
     }, {});
   };
 
-  // --- FILTERING TUGAS ---
   const filteredTasks = historyTasks.filter(task => {
     const isCompleted = task.subtasks?.length > 0 && task.subtasks.every(s => s.completed);
     if (filter === 'selesai') return isCompleted;
@@ -55,7 +50,6 @@ function Riwayat({ focusLogs = [] }) {
   const groupedTasks = groupTasksByDate(filteredTasks);
   const groupedLogs = groupLogsByDate(focusLogs);
 
-  // --- STATISTIK SINGKAT ---
   const totalMisi = historyTasks.length;
   const misiBerhasil = historyTasks.filter(t => t.subtasks?.length > 0 && t.subtasks.every(s => s.completed)).length;
   const totalMenitFokus = focusLogs.reduce((acc, log) => acc + log.duration, 0);
@@ -98,7 +92,6 @@ function Riwayat({ focusLogs = [] }) {
           <TabButton active={activeTab === 'fokus'} onClick={() => setActiveTab('fokus')} icon="⏱️" label="Jejak Fokus" />
         </div>
         
-        {/* Filter Dropdown (Hanya muncul di tab misi) */}
         {activeTab === 'misi' && (
           <select 
             value={filter} 
@@ -112,10 +105,8 @@ function Riwayat({ focusLogs = [] }) {
         )}
       </div>
 
-      {/* 3. KONTEN UTAMA */}
       <div className="pb-10">
         
-        {/* --- KONTEN: RIWAYAT MISI --- */}
         {activeTab === 'misi' && (
           Object.keys(groupedTasks).length === 0 ? (
             <EmptyState icon="😾" message="Belum ada riwayat misi yang tercatat." />
@@ -134,9 +125,15 @@ function Riwayat({ focusLogs = [] }) {
                       const done = task.subtasks?.filter(s => s.completed).length || 0;
                       const isCompleted = total > 0 && total === done;
                       const percent = total === 0 ? 0 : Math.round((done / total) * 100);
+                      const isExpanded = expandedTask === task.id;
+
+                      // Hitung total durasi fokus khusus untuk task ini
+                      const taskFocusTime = focusLogs
+                        .filter(log => log.taskId === task.id)
+                        .reduce((acc, log) => acc + log.duration, 0);
 
                       return (
-                        <div key={task.id} className="bg-white border border-slate-100 p-5 rounded-[1.5rem] shadow-sm hover:shadow-md transition-all group">
+                        <div key={task.id} className={`bg-white border border-slate-100 p-5 rounded-[1.5rem] shadow-sm hover:shadow-md transition-all group h-fit`}>
                           <div className="flex justify-between items-start mb-3">
                             <span className={`text-[9px] font-black uppercase tracking-widest px-2 py-1 rounded-md ${isCompleted ? 'bg-green-50 text-green-600' : 'bg-orange-50 text-orange-600'}`}>
                               {isCompleted ? '🌟 Purrfect' : '🍂 Terbengkalai'}
@@ -145,12 +142,52 @@ function Riwayat({ focusLogs = [] }) {
                           </div>
                           
                           <h3 className="font-bold text-slate-800 text-lg mb-1 leading-tight">{task.title}</h3>
-                          <p className="text-[11px] text-slate-400 font-medium mb-4">Misi berisi {total} langkah.</p>
+                          
+                          <div className="flex items-center gap-2 mb-4">
+                            <span className="text-[11px] text-slate-400 font-medium">Progress: {done}/{total} step</span>
+                            <span className="text-slate-200">•</span>
+                            <span className="text-[11px] text-blue-500 font-black uppercase tracking-tighter">⏱️ {taskFocusTime} mnt fokus</span>
+                          </div>
                           
                           <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden mb-1">
                             <div className={`h-full transition-all ${isCompleted ? 'bg-green-500' : 'bg-orange-400'}`} style={{ width: `${percent}%` }}></div>
                           </div>
-                          <div className="text-right text-[10px] font-black text-slate-400">{percent}%</div>
+                          <div className="flex justify-between items-center mt-1">
+                            <button 
+                              onClick={() => setExpandedTask(isExpanded ? null : task.id)}
+                              className="text-[10px] font-black text-slate-400 hover:text-slate-800 transition-colors uppercase tracking-widest"
+                            >
+                              {isExpanded ? '🔼 Tutup Catatan' : '🔽 Lihat Catatan'}
+                            </button>
+                            <div className="text-[10px] font-black text-slate-400">{percent}%</div>
+                          </div>
+
+                          {/* AREA CATATAN (EXPANDABLE) */}
+                          {isExpanded && (
+                            <div className="mt-4 pt-4 border-t border-slate-50 animate-in slide-in-from-top-2 duration-300">
+                              <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">📜 Catatan Misi:</h4>
+                              <div className="bg-slate-50 rounded-xl p-3 text-xs text-slate-600 leading-relaxed italic border border-slate-100">
+                                {task.notes || "Tidak ada catatan untuk misi ini."}
+                              </div>
+                              
+                              {/* Detail Sesi yang Terlibat */}
+                              <div className="mt-3">
+                                <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">🐾 Detail Sesi:</h4>
+                                <div className="space-y-1">
+                                  {focusLogs.filter(l => l.taskId === task.id).length > 0 ? (
+                                    focusLogs.filter(l => l.taskId === task.id).map((l, idx) => (
+                                      <div key={idx} className="flex justify-between text-[10px] text-slate-500 font-medium">
+                                        <span>Sesi {idx + 1}</span>
+                                        <span className="font-bold text-blue-500">{l.duration} menit</span>
+                                      </div>
+                                    ))
+                                  ) : (
+                                    <p className="text-[10px] text-slate-400 italic">Data sesi tidak ditemukan.</p>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                          )}
                         </div>
                       );
                     })}
@@ -180,23 +217,28 @@ function Riwayat({ focusLogs = [] }) {
                     </div>
                     
                     <div className="space-y-3">
-                      {groupedLogs[date].map((log, i) => (
-                        <div key={i} className="flex items-center gap-4 p-3 rounded-2xl hover:bg-slate-50 transition-colors border border-transparent hover:border-slate-100">
-                          <div className="w-12 h-12 bg-slate-100 rounded-2xl flex items-center justify-center text-xl shadow-inner">
-                            🐟
+                      {groupedLogs[date].map((log, i) => {
+                        // Cari nama task untuk ditampilkan di jejak fokus
+                        const taskName = historyTasks.find(t => t.id === log.taskId)?.title || "Sesi Berburu Selesai";
+                        
+                        return (
+                          <div key={i} className="flex items-center gap-4 p-3 rounded-2xl hover:bg-slate-50 transition-colors border border-transparent hover:border-slate-100">
+                            <div className="w-12 h-12 bg-slate-100 rounded-2xl flex items-center justify-center text-xl shadow-inner">
+                              🐟
+                            </div>
+                            <div className="flex-1">
+                              <h4 className="text-sm font-bold text-slate-700 line-clamp-1">{taskName}</h4>
+                              <p className="text-xs font-medium text-slate-400">
+                                {new Date(log.date).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}
+                              </p>
+                            </div>
+                            <div className="text-right">
+                              <p className="text-lg font-black text-blue-600">+{log.duration}<span className="text-xs">m</span></p>
+                              <p className="text-[9px] font-black uppercase tracking-widest text-orange-400">+{(log.duration >= 25 ? 50 : log.duration)} XP</p>
+                            </div>
                           </div>
-                          <div className="flex-1">
-                            <h4 className="text-sm font-bold text-slate-700">Sesi Berburu Selesai</h4>
-                            <p className="text-xs font-medium text-slate-400">
-                              {new Date(log.date).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}
-                            </p>
-                          </div>
-                          <div className="text-right">
-                            <p className="text-lg font-black text-blue-600">+{log.duration}<span className="text-xs">m</span></p>
-                            <p className="text-[9px] font-black uppercase tracking-widest text-orange-400">+{(log.duration >= 25 ? 50 : log.duration)} XP</p>
-                          </div>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   </div>
                 );
@@ -209,7 +251,6 @@ function Riwayat({ focusLogs = [] }) {
   );
 }
 
-// --- KOMPONEN BANTUAN ---
 function TabButton({ active, onClick, icon, label }) {
   return (
     <button 

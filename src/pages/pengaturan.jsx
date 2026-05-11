@@ -2,16 +2,15 @@ import React, { useState, useEffect } from 'react';
 import toast, { Toaster } from 'react-hot-toast';
 
 function Pengaturan() {
-  // State sekarang dibungkus dalam satu object agar rapi
   const [settings, setSettings] = useState({
     volume: 80,
     notifications: true,
     autoStartBreak: false,
-    dailyTarget: 120, // Default 120 menit (2 jam)
+    dailyTarget: 120,
+    maxSessions: 4, // Default 4 sesi
     darkMode: false
   });
 
-  // Ambil pengaturan yang tersimpan saat komponen dimuat
   useEffect(() => {
     const savedSettings = JSON.parse(localStorage.getItem('purrfocus_settings'));
     if (savedSettings) {
@@ -19,7 +18,6 @@ function Pengaturan() {
     }
   }, []);
 
-  // Fungsi untuk update nilai satu per satu
   const handleChange = (key, value) => {
     setSettings(prev => ({ ...prev, [key]: value }));
   };
@@ -27,12 +25,11 @@ function Pengaturan() {
   const handleSave = () => {
     localStorage.setItem('purrfocus_settings', JSON.stringify(settings));
     toast.success("Pengaturan berhasil disimpan! 🐾");
-    // Reload halaman otomatis agar target baru langsung teraplikasikan ke Dashboard
     setTimeout(() => window.location.reload(), 1000);
   };
 
   const handleWipeData = () => {
-    if (window.confirm("🙀 Yakin mau menghapus SEMUA data (Tugas, Riwayat, Statistik, Pengaturan)? Ini tidak bisa dibatalkan lho!")) {
+    if (window.confirm("🙀 Yakin mau menghapus SEMUA data? Ini tidak bisa dibatalkan lho!")) {
       localStorage.clear();
       toast.success("Semua data berhasil dihapus. Memulai lembaran baru... 🍂");
       setTimeout(() => window.location.reload(), 1500);
@@ -43,7 +40,6 @@ function Pengaturan() {
     <div className="p-6 flex-1 overflow-y-auto custom-scrollbar bg-slate-50/50 min-h-full space-y-6 relative">
       <Toaster position="top-center" />
       
-      {/* 1. HEADER BANNER */}
       <div className="bg-gradient-to-br from-slate-800 to-slate-900 rounded-[2rem] p-8 text-white shadow-xl relative overflow-hidden">
         <div className="relative z-10">
           <h1 className="text-3xl font-black mb-2 tracking-tight">Pengaturan ⚙️</h1>
@@ -56,7 +52,7 @@ function Pengaturan() {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 pb-10">
         
-        {/* 2. KARTU AUDIO & NOTIFIKASI */}
+        {/* KARTU AUDIO */}
         <div className="bg-white border border-slate-100 p-6 rounded-[2rem] shadow-sm">
           <div className="flex items-center gap-3 mb-6 border-b border-slate-50 pb-4">
             <span className="text-2xl">🔊</span>
@@ -86,7 +82,7 @@ function Pengaturan() {
           </div>
         </div>
 
-        {/* 3. KARTU PREFERENSI FOKUS */}
+        {/* KARTU PREFERENSI FOKUS */}
         <div className="bg-white border border-slate-100 p-6 rounded-[2rem] shadow-sm">
           <div className="flex items-center gap-3 mb-6 border-b border-slate-50 pb-4">
             <span className="text-2xl">⏳</span>
@@ -94,7 +90,6 @@ function Pengaturan() {
           </div>
           
           <div className="space-y-6">
-            {/* TAMBAHAN: TARGET FOKUS HARIAN */}
             <div className="flex items-center justify-between">
               <div>
                 <p className="font-bold text-slate-700">Target Fokus Harian</p>
@@ -104,10 +99,29 @@ function Pengaturan() {
                 <input 
                   type="number" 
                   value={settings.dailyTarget}
-                  onChange={(e) => handleChange('dailyTarget', parseInt(e.target.value) || 0)}
+                  onChange={(e) => handleChange('dailyTarget', Math.max(1, parseInt(e.target.value) || 0))}
                   className="w-16 bg-slate-50 border border-slate-200 text-slate-700 font-black text-center rounded-lg py-1.5 outline-none focus:border-blue-500 transition-all"
                 />
                 <span className="text-xs font-bold text-slate-400">Mnt</span>
+              </div>
+            </div>
+
+            {/* FITUR BARU: JUMLAH SESI PER SIKLUS */}
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="font-bold text-slate-700">Jumlah Sesi per Siklus</p>
+                <p className="text-[11px] font-medium text-slate-400">Berapa sesi fokus sebelum Istirahat Panjang</p>
+              </div>
+              <div className="flex items-center gap-2">
+                <input 
+                  type="number" 
+                  value={settings.maxSessions}
+                  min="1"
+                  max="10"
+                  onChange={(e) => handleChange('maxSessions', Math.max(1, parseInt(e.target.value) || 1))}
+                  className="w-16 bg-slate-50 border border-slate-200 text-slate-700 font-black text-center rounded-lg py-1.5 outline-none focus:border-blue-500 transition-all"
+                />
+                <span className="text-xs font-bold text-slate-400">Sesi</span>
               </div>
             </div>
 
@@ -129,7 +143,7 @@ function Pengaturan() {
           </div>
         </div>
 
-        {/* 4. DANGER ZONE (HAPUS DATA) */}
+        {/* DANGER ZONE */}
         <div className="bg-red-50/50 border border-red-100 p-6 rounded-[2rem] shadow-sm lg:col-span-2 flex flex-col md:flex-row items-center justify-between gap-6">
           <div className="flex items-center gap-4">
             <div className="w-12 h-12 bg-red-100 text-red-500 rounded-2xl flex items-center justify-center text-2xl">
@@ -151,7 +165,6 @@ function Pengaturan() {
         </div>
       </div>
 
-      {/* TOMBOL SIMPAN MENGAMBANG */}
       <div className="fixed bottom-10 right-10 z-50">
         <button 
           onClick={handleSave}
@@ -165,7 +178,6 @@ function Pengaturan() {
   );
 }
 
-// Komponen Toggle Switch Kecil
 function Toggle({ active, onClick, disabled = false }) {
   return (
     <button 
