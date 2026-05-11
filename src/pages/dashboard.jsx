@@ -1,11 +1,9 @@
 import React, { useState } from 'react';
 import useStats from '../hooks/useStats'; 
 
-// 1. TAMBAHKAN prop `focusLogs = []` di sini 👇
 function Dashboard({ tasks = [], focusLogs = [], onAddTask, onStartFocusing, onDeleteTask, onEditTask }) {
   const [newTasksName, setNewTasksName] = useState("");
   
-  // 2. Panggil focusLogs di useStats, dan tarik totalXP 👇
   const { focusTimeToday, sessionCount, completedTasks, focusScore, currentStreak, totalXP } = useStats(tasks, focusLogs);
 
   const getProgress = (task) => {
@@ -20,7 +18,6 @@ function Dashboard({ tasks = [], focusLogs = [], onAddTask, onStartFocusing, onD
   return (
     <div className="p-6 grid grid-cols-12 gap-6 bg-white min-h-full">
       
-      {/* 📊 STATS GRID - Diubah jadi 6 Kolom (md:grid-cols-6) biar muat semua */}
       <div className="col-span-12 grid grid-cols-2 md:grid-cols-6 gap-3">
         <StatCard icon="⏱️" label="Fokus" value={focusTimeToday} color="blue" />
         <StatCard icon="⚔️" label="Sesi" value={sessionCount} color="orange" />
@@ -28,11 +25,9 @@ function Dashboard({ tasks = [], focusLogs = [], onAddTask, onStartFocusing, onD
         <StatCard icon="🎯" label="Skor" value={`${focusScore}%`} color="purple" />
         <StatCard icon="🔥" label="Streak" value={currentStreak} color="red" />
         
-        {/* KOTAK BARU UNTUK XP! */}
         <StatCard icon="🐟" label="XP Point" value={totalXP} color="yellow" /> 
       </div>
 
-      {/* ⚔️ DAFTAR BERBURU */}
       <div className="col-span-12 lg:col-span-8 space-y-6">
         <div className="bg-slate-50/50 border border-slate-100 rounded-[2rem] p-6 shadow-sm min-h-[400px]">
           <div className="flex justify-between items-center mb-6">
@@ -80,7 +75,6 @@ function Dashboard({ tasks = [], focusLogs = [], onAddTask, onStartFocusing, onD
         </div>
       </div>
 
-      {/* 📅 SIDE CONTENT - Kalender */}
       <div className="col-span-12 lg:col-span-4 space-y-6">
         <div className="bg-white border border-slate-100 rounded-[2.5rem] p-6 shadow-sm">
           <h3 className="text-sm font-black text-slate-400 uppercase tracking-widest mb-4">Jadwal Buruan 📅</h3>
@@ -117,7 +111,6 @@ function Dashboard({ tasks = [], focusLogs = [], onAddTask, onStartFocusing, onD
             })}
           </div>
 
-          {/* Info Box di bawah Kalender */}
           <div className="mt-6 p-4 bg-slate-50 rounded-[1.5rem] border border-slate-100">
             <div className="flex items-center gap-3 mb-3">
               <div className="w-2 h-2 bg-orange-400 rounded-full animate-pulse"></div>
@@ -127,7 +120,7 @@ function Dashboard({ tasks = [], focusLogs = [], onAddTask, onStartFocusing, onD
             {tasks.filter(t => t.deadline).length > 0 ? (
               tasks
               .filter(t => t.deadline)
-              .sort((a, b) => new Date(a.deadline) - new Date(b.deadline)) // Diurutkan dari yang terdekat
+              .sort((a, b) => new Date(a.deadline) - new Date(b.deadline))
               .slice(0, 2)
               .map(t => (
                 <div key={t.id} className="mb-2 last:mb-0">
@@ -145,7 +138,6 @@ function Dashboard({ tasks = [], focusLogs = [], onAddTask, onStartFocusing, onD
   );
 }
 
-// Komponen Pembantu
 function StatCard({ icon, label, value, color }) {
   const themes = {
     blue: "bg-blue-50 border-blue-100 text-blue-900",
@@ -153,7 +145,7 @@ function StatCard({ icon, label, value, color }) {
     green: "bg-green-50 border-green-100 text-green-900",
     purple: "bg-purple-50 border-purple-100 text-purple-900",
     red: "bg-red-50 border-red-100 text-red-900",
-    yellow: "bg-yellow-50 border-yellow-100 text-yellow-900", // Tema kuning untuk XP
+    yellow: "bg-yellow-50 border-yellow-100 text-yellow-900",
   };
   
   return (
