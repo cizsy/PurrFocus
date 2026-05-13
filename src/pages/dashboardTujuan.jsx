@@ -1,204 +1,454 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from "react";
+import {
+  Plus,
+  Trash2,
+  Timer,
+  CalendarDays,
+  Check,
+  Target,
+  X,
+} from "lucide-react";
 
-function Tujuan({ 
-  tasks, 
-  onAddTask, 
-  updateTaskDetail, 
-  onDeleteTask, 
-  onAddSubtask, 
-  onToggleSubtask, 
-  onDeleteSubtask, 
+import { catAssets } from "../components/catAssets";
+import { purrThemes, DEFAULT_THEME } from "../components/purrThemes";
+
+const getSavedThemeName = () => {
+  try {
+    const savedSettings = JSON.parse(
+      localStorage.getItem("purrfocus_settings") || "{}"
+    );
+
+    return savedSettings.theme || DEFAULT_THEME;
+  } catch {
+    return DEFAULT_THEME;
+  }
+};
+
+function Tujuan({
+  tasks = [],
+  onAddTask,
+  updateTaskDetail,
+  onDeleteTask,
+  onAddSubtask,
+  onToggleSubtask,
+  onDeleteSubtask,
   onEditSubtask,
-  onStartFocusing 
+  onStartFocusing,
 }) {
   const [newTasksName, setNewTasksName] = useState("");
   const [newSubtexts, setNewSubtexts] = useState({});
   const [editingSub, setEditingSub] = useState({ taskId: null, subId: null });
   const [tempText, setTempText] = useState("");
-  
-  // State untuk menampung data yang mau dihapus saat pop-up muncul
-  const [deleteTarget, setDeleteTarget] = useState({ taskId: null, subId: null });
+  const [deleteTarget, setDeleteTarget] = useState({
+    taskId: null,
+    subId: null,
+  });
+
+  const [themeName, setThemeName] = useState(getSavedThemeName);
+  const theme = purrThemes[themeName] || purrThemes[DEFAULT_THEME];
+
+  useEffect(() => {
+    const handleThemeChange = (event) => {
+      setThemeName(event.detail || getSavedThemeName());
+    };
+
+    window.addEventListener("purrfocus-theme-change", handleThemeChange);
+
+    return () => {
+      window.removeEventListener("purrfocus-theme-change", handleThemeChange);
+    };
+  }, []);
+
+  const catColor = theme.isDark ? "white" : "black";
+  const catSad = catAssets?.[catColor]?.sad || catAssets?.black?.sad;
+  const catAngry = catAssets?.[catColor]?.angry || catAssets?.black?.angry;
 
   const handleAddMainTask = () => {
-    if (!newTasksName || newTasksName.trim() === "") return;
-    onAddTask(newTasksName);
-    setNewTasksName("");
+    if (!newTasksName.trim()) return;
+
+    const success = onAddTask(newTasksName.trim());
+
+    if (success !== false) {
+      setNewTasksName("");
+    }
   };
 
   const handleAddSub = (taskId) => {
     const text = newSubtexts[taskId];
+
     if (text && text.trim() !== "") {
-      onAddSubtask(taskId, text);
-      setNewSubtexts({ ...newSubtexts, [taskId]: "" });
+      onAddSubtask(taskId, text.trim());
+      setNewSubtexts((prev) => ({ ...prev, [taskId]: "" }));
     }
   };
 
   const saveEdit = (taskId, subId) => {
     if (tempText.trim() !== "") {
-      onEditSubtask(taskId, subId, tempText);
+      onEditSubtask(taskId, subId, tempText.trim());
     }
+
     setEditingSub({ taskId: null, subId: null });
+    setTempText("");
   };
 
   return (
-    <div className="p-4 flex-1 overflow-y-auto custom-scrollbar bg-white relative">
-      <div className="mb-4 bg-slate-50 p-3 rounded-2xl border border-slate-100">
-        <div className="flex gap-2">
-          <input 
-            className="flex-1 bg-white border border-slate-200 focus:border-blue-400 px-4 py-2 rounded-xl outline-none font-bold text-slate-700 text-xs transition-all"
+    <div
+      className={`min-h-full flex-1 overflow-y-auto custom-scrollbar p-5 md:p-6 space-y-5 transition-colors duration-300 ${theme.mainBg} ${theme.text}`}
+    >
+      {/* HERO */}
+      <section
+        className={`relative overflow-hidden rounded-[2rem] border ${theme.border} ${theme.panelBg} p-6 shadow-sm backdrop-blur-md`}
+      >
+        <div className="relative z-10 grid grid-cols-1 gap-5 md:grid-cols-[1fr_auto] md:items-center">
+          <div>
+            <p
+              className={`mb-2 text-[10px] font-black uppercase tracking-[0.25em] ${theme.muted}`}
+            >
+              Tujuan Saya
+            </p>
+
+            <h1 className={`text-3xl font-black tracking-tight ${theme.text}`}>
+              Pecah target jadi langkah kecil.
+            </h1>
+
+            <p
+              className={`mt-2 max-w-xl text-sm font-medium leading-relaxed ${theme.muted}`}
+            >
+              Biar nggak cuma numpuk di kepala, yuk tulis targetmu lalu pecah jadi subtask yang lebih gampang dikerjakan.
+            </p>
+          </div>
+
+          {catSad && (
+            <div className="mx-auto flex h-28 w-28 items-center justify-center rounded-[2rem] bg-white/35 md:h-36 md:w-36">
+              <img
+                src={catSad}
+                alt="Kucing PurrFocus"
+                className="h-24 w-24 object-contain md:h-32 md:w-32"
+              />
+            </div>
+          )}
+        </div>
+      </section>
+
+      {/* INPUT TARGET */}
+      <section
+        className={`rounded-[2rem] border ${theme.border} ${theme.panelBg} p-4 shadow-sm backdrop-blur-md`}
+      >
+        <div className="flex flex-col gap-3 md:flex-row">
+          <input
+            className={`flex-1 rounded-2xl border border-black/5 bg-white/50 px-4 py-3 text-sm font-bold outline-none transition-all placeholder:opacity-50 focus:bg-white/70 ${theme.text}`}
             placeholder="Tambahkan target baru..."
             value={newTasksName}
-            onChange={(e) => setNewTasksName(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && handleAddMainTask()}
+            onChange={(event) => setNewTasksName(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === "Enter") handleAddMainTask();
+            }}
           />
-          <button onClick={handleAddMainTask} className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-xl text-xs font-bold transition-all">
-            + Tambah
+
+          <button
+            onClick={handleAddMainTask}
+            className={`inline-flex items-center justify-center gap-2 rounded-2xl px-5 py-3 text-sm font-black transition-all active:scale-95 ${theme.button}`}
+          >
+            <Plus size={17} strokeWidth={3} />
+            Tambah Target
           </button>
         </div>
-      </div>
+      </section>
 
-      <div className="space-y-3">
-        {tasks.map(task => {
-          const total = task.subtasks?.length || 0;
-          const done = task.subtasks?.filter(s => s.completed).length || 0;
-          const percent = total === 0 ? 0 : Math.round((done / total) * 100);
+      {/* LIST TASK */}
+      <section className="space-y-3">
+        {tasks.length === 0 ? (
+          <EmptyTasks theme={theme} cat={catSad} />
+        ) : (
+          tasks.map((task) => {
+            const total = task.subtasks?.length || 0;
+            const done =
+              task.subtasks?.filter((subtask) => subtask.completed).length || 0;
+            const percent = total === 0 ? 0 : Math.round((done / total) * 100);
 
-          return (
-            <div key={task.id} className="bg-white border border-slate-100 p-4 rounded-[1.5rem] shadow-sm relative overflow-hidden group hover:border-blue-200 transition-all">
-              <div className="absolute top-0 left-0 h-0.5 bg-blue-500 transition-all duration-1000" style={{ width: `${percent}%` }}></div>
+            return (
+              <article
+                key={task.id}
+                className={`relative overflow-hidden rounded-[1.7rem] border ${theme.border} ${theme.panelBg} p-4 shadow-sm backdrop-blur-md transition-all hover:-translate-y-0.5 hover:shadow-md`}
+              >
+                <div
+                  className="absolute left-0 top-0 h-1 bg-current opacity-60 transition-all duration-700"
+                  style={{ width: `${percent}%` }}
+                />
 
-              {/* HEADER TASK */}
-              <div className="flex items-start justify-between mb-3">
-                <div className="flex-1">
-                  <div className="flex items-center gap-2 mb-1">
-                    <span className="text-[8px] font-black bg-blue-50 text-blue-600 px-1.5 py-0.5 rounded uppercase">{percent}%</span>
-                    <select 
-                      className="text-[8px] font-bold uppercase text-slate-400 bg-transparent outline-none cursor-pointer"
-                      value={task.category || "Umum"}
-                      onChange={(e) => updateTaskDetail(task.id, { category: e.target.value })}
-                    >
-                      <option value="Umum">Umum</option>
-                      <option value="Kerja">Kerja</option>
-                      <option value="Belajar">Belajar</option>
-                      <option value="Hobby">Hobby</option>
-                    </select>
-                  </div>
-                  <input 
-                    className="text-base font-black bg-transparent outline-none focus:text-blue-600 w-full"
-                    value={task.title}
-                    onChange={(e) => updateTaskDetail(task.id, { title: e.target.value })}
-                  />
-                </div>
+                {/* HEADER TASK */}
+                <div className="mb-4 flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                  <div className="min-w-0 flex-1">
+                    <div className="mb-2 flex flex-wrap items-center gap-2">
+                      <span className="rounded-full bg-white/45 px-2.5 py-1 text-[10px] font-black">
+                        {percent}%
+                      </span>
 
-                <div className="flex items-center gap-2 border-l pl-3 border-slate-50">
-                  <input 
-                    type="date"
-                    className="text-[10px] font-bold text-slate-400 outline-none bg-transparent"
-                    value={task.deadline || ""}
-                    onChange={(e) => updateTaskDetail(task.id, { deadline: e.target.value })}
-                  />
-                  <button onClick={() => onDeleteTask(task.id)} className="text-slate-200 hover:text-red-500 transition-all text-xs">🗑️</button>
-                  
-                  <button 
-                    onClick={() => onStartFocusing(task)} 
-                    className="bg-slate-800 hover:bg-blue-600 text-white rounded-lg px-3 py-1.5 text-[10px] font-bold transition-all shadow-sm active:scale-95 flex items-center gap-1"
-                  >
-                    Fokus
-                  </button>
-                </div>
-              </div>
-
-              {/* LIST SUBTASKS */}
-              <div className="bg-slate-50 rounded-xl p-2 border border-slate-50">
-                <div className="space-y-1 mb-2">
-                  {task.subtasks.map(sub => (
-                    <div key={sub.id} className="flex items-center justify-between bg-white p-1.5 px-3 rounded-lg border border-slate-100 group/item">
-                      <div className="flex items-center gap-2 flex-1">
-                        <input 
-                          type="checkbox" 
-                          checked={sub.completed}
-                          onChange={() => onToggleSubtask(task.id, sub.id)}
-                          className="checkbox checkbox-xs checkbox-primary"
-                        />
-                        {editingSub.subId === sub.id ? (
-                          <input 
-                            autoFocus
-                            className="text-[11px] font-bold text-blue-600 bg-blue-50 outline-none px-1 rounded flex-1"
-                            value={tempText}
-                            onChange={(e) => setTempText(e.target.value)}
-                            onBlur={() => saveEdit(task.id, sub.id)}
-                            onKeyDown={(e) => e.key === 'Enter' && saveEdit(task.id, sub.id)}
-                          />
-                        ) : (
-                          <span 
-                            onClick={() => {
-                              setEditingSub({ taskId: task.id, subId: sub.id });
-                              setTempText(sub.text);
-                            }}
-                            className={`text-[11px] font-bold cursor-text flex-1 ${sub.completed ? 'line-through text-slate-300' : 'text-slate-600'}`}
-                          >
-                            {sub.text}
-                          </span>
-                        )}
-                      </div>
-                      
-                      <button 
-                        onClick={() => setDeleteTarget({ taskId: task.id, subId: sub.id })}
-                        className="opacity-0 group-hover/item:opacity-100 text-[8px] text-red-300 hover:text-red-500 font-bold px-2"
+                      <select
+                        className={`rounded-full bg-white/35 px-2.5 py-1 text-[10px] font-black uppercase outline-none cursor-pointer ${theme.muted}`}
+                        value={task.category || "Umum"}
+                        onChange={(event) =>
+                          updateTaskDetail(task.id, {
+                            category: event.target.value,
+                          })
+                        }
                       >
-                        HAPUS
-                      </button>
+                        <option value="Umum">Umum</option>
+                        <option value="Kerja">Kerja</option>
+                        <option value="Belajar">Belajar</option>
+                        <option value="Hobby">Hobby</option>
+                      </select>
 
+                      <span className={`text-[10px] font-bold ${theme.muted}`}>
+                        {done}/{total} langkah selesai
+                      </span>
                     </div>
-                  ))}
+
+                    <input
+                      className={`w-full bg-transparent text-lg font-black outline-none transition-all focus:opacity-80 ${theme.text}`}
+                      value={task.title}
+                      onChange={(event) =>
+                        updateTaskDetail(task.id, { title: event.target.value })
+                      }
+                    />
+                  </div>
+
+                  <div className="flex flex-wrap items-center gap-2 lg:justify-end">
+                    <label className="inline-flex items-center gap-2 rounded-2xl bg-white/35 px-3 py-2">
+                      <CalendarDays size={14} strokeWidth={2.5} />
+                      <input
+                        type="date"
+                        className={`bg-transparent text-[11px] font-bold outline-none ${theme.muted}`}
+                        value={task.deadline || ""}
+                        onChange={(event) =>
+                          updateTaskDetail(task.id, {
+                            deadline: event.target.value,
+                          })
+                        }
+                      />
+                    </label>
+
+                    <button
+                      onClick={() => onDeleteTask(task.id)}
+                      className="flex h-10 w-10 items-center justify-center rounded-2xl bg-white/35 text-red-400 transition-all hover:bg-red-50 hover:text-red-600 active:scale-95"
+                      title="Hapus target"
+                    >
+                      <Trash2 size={16} strokeWidth={2.5} />
+                    </button>
+
+                    <button
+                      onClick={() => onStartFocusing(task)}
+                      className={`inline-flex items-center gap-2 rounded-2xl px-4 py-2.5 text-xs font-black transition-all active:scale-95 ${theme.button}`}
+                    >
+                      <Timer size={15} strokeWidth={2.7} />
+                      Fokus
+                    </button>
+                  </div>
                 </div>
 
-                {/* Input Subtask Baru */}
-                <div className="flex gap-1 items-center px-1">
-                  <input 
-                    className="flex-1 bg-transparent px-2 py-1 text-[11px] outline-none border-b border-slate-200 focus:border-blue-400 font-medium"
-                    placeholder="Tambah langkah..."
-                    value={newSubtexts[task.id] || ""}
-                    onChange={(e) => setNewSubtexts({...newSubtexts, [task.id]: e.target.value})}
-                    onKeyDown={(e) => e.key === 'Enter' && handleAddSub(task.id)}
+                {/* PROGRESS */}
+                <div className="mb-4 h-2 w-full overflow-hidden rounded-full bg-black/10">
+                  <div
+                    className="h-full rounded-full bg-current opacity-70 transition-all duration-700"
+                    style={{ width: `${percent}%` }}
                   />
-                  <button onClick={() => handleAddSub(task.id)} className="text-blue-600 font-black text-lg px-2">+</button>
                 </div>
-              </div>
-            </div>
-          );
-        })}
-      </div>
 
+                {/* SUBTASKS */}
+                <div className="rounded-[1.4rem] border border-black/5 bg-white/30 p-3">
+                  <div className="mb-3 space-y-2">
+                    {task.subtasks?.length === 0 ? (
+                      <p
+                        className={`rounded-xl bg-white/30 px-3 py-3 text-xs font-bold ${theme.muted}`}
+                      >
+                        Belum ada langkah kecil. Tambahkan satu biar target ini
+                        nggak cuma jadi pajangan.
+                      </p>
+                    ) : (
+                      task.subtasks.map((subtask) => (
+                        <div
+                          key={subtask.id}
+                          className="group/item flex items-center justify-between gap-3 rounded-xl border border-black/5 bg-white/45 px-3 py-2"
+                        >
+                          <div className="flex min-w-0 flex-1 items-center gap-2">
+                            <button
+                              type="button"
+                              onClick={() => onToggleSubtask(task.id, subtask.id)}
+                              className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-md border transition-all ${
+                                subtask.completed
+                                  ? "bg-black/70 text-white border-transparent"
+                                  : "border-black/20 bg-white/30"
+                              }`}
+                            >
+                              {subtask.completed && (
+                                <Check size={13} strokeWidth={3} />
+                              )}
+                            </button>
+
+                            {editingSub.taskId === task.id &&
+                            editingSub.subId === subtask.id ? (
+                              <input
+                                autoFocus
+                                className={`flex-1 rounded-lg bg-white/60 px-2 py-1 text-[12px] font-bold outline-none ${theme.text}`}
+                                value={tempText}
+                                onChange={(event) =>
+                                  setTempText(event.target.value)
+                                }
+                                onBlur={() => saveEdit(task.id, subtask.id)}
+                                onKeyDown={(event) => {
+                                  if (event.key === "Enter") {
+                                    saveEdit(task.id, subtask.id);
+                                  }
+
+                                  if (event.key === "Escape") {
+                                    setEditingSub({
+                                      taskId: null,
+                                      subId: null,
+                                    });
+                                    setTempText("");
+                                  }
+                                }}
+                              />
+                            ) : (
+                              <span
+                                onClick={() => {
+                                  setEditingSub({
+                                    taskId: task.id,
+                                    subId: subtask.id,
+                                  });
+                                  setTempText(subtask.text);
+                                }}
+                                className={`min-w-0 flex-1 cursor-text truncate text-[12px] font-bold ${
+                                  subtask.completed
+                                    ? `line-through opacity-40 ${theme.muted}`
+                                    : theme.text
+                                }`}
+                              >
+                                {subtask.text}
+                              </span>
+                            )}
+                          </div>
+
+                          <button
+                            onClick={() =>
+                              setDeleteTarget({
+                                taskId: task.id,
+                                subId: subtask.id,
+                              })
+                            }
+                            className="opacity-0 transition-all group-hover/item:opacity-100 text-red-400 hover:text-red-600"
+                            title="Hapus subtask"
+                          >
+                            <Trash2 size={14} strokeWidth={2.5} />
+                          </button>
+                        </div>
+                      ))
+                    )}
+                  </div>
+
+                  {/* INPUT SUBTASK */}
+                  <div className="flex items-center gap-2 rounded-xl bg-white/35 px-2 py-2">
+                    <input
+                      className={`min-w-0 flex-1 bg-transparent px-2 text-[12px] font-bold outline-none placeholder:opacity-50 ${theme.text}`}
+                      placeholder="Tambah langkah kecil..."
+                      value={newSubtexts[task.id] || ""}
+                      onChange={(event) =>
+                        setNewSubtexts((prev) => ({
+                          ...prev,
+                          [task.id]: event.target.value,
+                        }))
+                      }
+                      onKeyDown={(event) => {
+                        if (event.key === "Enter") handleAddSub(task.id);
+                      }}
+                    />
+
+                    <button
+                      onClick={() => handleAddSub(task.id)}
+                      className={`flex h-8 w-8 items-center justify-center rounded-xl font-black transition-all active:scale-95 ${theme.button}`}
+                      title="Tambah subtask"
+                    >
+                      <Plus size={16} strokeWidth={3} />
+                    </button>
+                  </div>
+                </div>
+              </article>
+            );
+          })
+        )}
+      </section>
+
+      {/* DELETE MODAL */}
       {deleteTarget.taskId && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/40 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="bg-white p-6 rounded-[2rem] shadow-2xl w-72 text-center border border-white scale-100 animate-in zoom-in-95 duration-200">
-            <div className="text-5xl mb-3 drop-shadow-sm">🙀</div>
-            <h3 className="text-lg font-black text-slate-800 mb-1">Hapus Subtask?</h3>
-            <p className="text-xs text-slate-500 font-medium mb-6 leading-relaxed">
-              Subtask yang sudah dihapus tidak bisa dikembalikan lagi lho!
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm">
+          <div
+            className={`w-full max-w-xs rounded-[2rem] border ${theme.border} ${theme.mainBg} p-6 text-center shadow-2xl`}
+          >
+            {catAngry ? (
+              <img
+                src={catAngry}
+                alt=""
+                className="mx-auto mb-3 h-24 w-24 object-contain"
+              />
+            ) : (
+              <div className="mb-3 text-5xl">🙀</div>
+            )}
+
+            <h3 className={`mb-1 text-lg font-black ${theme.text}`}>
+              Hapus Subtask?
+            </h3>
+
+            <p
+              className={`mb-6 text-xs font-medium leading-relaxed ${theme.muted}`}
+            >
+              Subtask yang sudah dihapus tidak bisa dikembalikan lagi.
             </p>
+
             <div className="flex gap-2">
               <button
                 onClick={() => setDeleteTarget({ taskId: null, subId: null })}
-                className="flex-1 py-3 rounded-xl font-black text-[11px] uppercase tracking-wider text-slate-500 bg-slate-100 hover:bg-slate-200 transition-all active:scale-95"
+                className="flex-1 rounded-xl bg-black/10 py-3 text-[11px] font-black uppercase tracking-wider transition-all hover:bg-black/15 active:scale-95"
               >
                 Batal
               </button>
+
               <button
                 onClick={() => {
                   onDeleteSubtask(deleteTarget.taskId, deleteTarget.subId);
                   setDeleteTarget({ taskId: null, subId: null });
                 }}
-                className="flex-1 py-3 rounded-xl font-black text-[11px] uppercase tracking-wider text-white bg-red-500 hover:bg-red-600 shadow-[0_5px_15px_rgba(239,68,68,0.3)] transition-all active:scale-95"
+                className="flex-1 rounded-xl bg-red-500 py-3 text-[11px] font-black uppercase tracking-wider text-white shadow-[0_5px_15px_rgba(239,68,68,0.25)] transition-all hover:bg-red-600 active:scale-95"
               >
-                Ya, Hapus!
+                Hapus
               </button>
             </div>
           </div>
         </div>
       )}
-      
+    </div>
+  );
+}
+
+function EmptyTasks({ theme, cat }) {
+  return (
+    <div
+      className={`flex flex-col items-center justify-center rounded-[2rem] border ${theme.border} ${theme.panelBg} px-6 py-16 text-center shadow-sm backdrop-blur-md`}
+    >
+      {cat && (
+        <img
+          src={cat}
+          alt=""
+          className="mb-4 h-28 w-28 object-contain opacity-90"
+        />
+      )}
+
+      <h2 className={`text-lg font-black ${theme.text}`}>
+        Belum ada target
+      </h2>
+
+      <p className={`mt-2 max-w-sm text-xs font-bold leading-relaxed ${theme.muted}`}>
+        Tulis satu target kecil dulu. Supaya lebih mudah untuk berburu
+      </p>
     </div>
   );
 }

@@ -1,195 +1,347 @@
-import React, { useState, useEffect } from 'react';
-import toast, { Toaster } from 'react-hot-toast';
+import React, { useState, useEffect } from "react";
+import toast, { Toaster } from "react-hot-toast";
+import ThemeCard from "../components/ThemeCards";
+import { themeOptions, purrThemes, DEFAULT_THEME } from "../components/purrThemes";
 
 function Pengaturan() {
   const [settings, setSettings] = useState({
-    volume: 80,
-    notifications: true,
-    autoStartBreak: false,
-    dailyTarget: 120,
-    maxSessions: 4, // Default 4 sesi
-    darkMode: false
+  volume: 80,
+  notifications: true,
+  autoStartBreak: false,
+  dailyTarget: 120,
+  focusDuration: 25,
+  maxSessions: 4,
+  theme: DEFAULT_THEME,
   });
 
   useEffect(() => {
-    const savedSettings = JSON.parse(localStorage.getItem('purrfocus_settings'));
-    if (savedSettings) {
-      setSettings(prev => ({ ...prev, ...savedSettings }));
+    try {
+      const savedSettings = JSON.parse(
+        localStorage.getItem("purrfocus_settings") || "{}"
+      );
+
+      setSettings((prev) => ({
+        ...prev,
+        ...savedSettings,
+        theme: savedSettings.theme || DEFAULT_THEME,
+      }));
+    } catch {
+      localStorage.removeItem("purrfocus_settings");
     }
   }, []);
 
-  const handleChange = (key, value) => {
-    setSettings(prev => ({ ...prev, [key]: value }));
-  };
+  const currentTheme =
+    purrThemes[settings.theme] || purrThemes[DEFAULT_THEME];
 
+  const handleChange = (key, value) => {
+    setSettings((prev) => {
+      const nextSettings = { ...prev, [key]: value };
+
+      if (key === "theme") {
+        localStorage.setItem("purrfocus_settings", JSON.stringify(nextSettings));
+
+        window.dispatchEvent(
+          new CustomEvent("purrfocus-theme-change", {
+            detail: value,
+          })
+        );
+      }
+
+      return nextSettings;
+    });
+  };
   const handleSave = () => {
-    localStorage.setItem('purrfocus_settings', JSON.stringify(settings));
-    toast.success("Pengaturan berhasil disimpan! 🐾");
-    setTimeout(() => window.location.reload(), 1000);
+  localStorage.setItem("purrfocus_settings", JSON.stringify(settings));
+
+  window.dispatchEvent(
+    new CustomEvent("purrfocus-settings-change", {
+      detail: settings,
+    })
+  );
+
+  toast.success("Pengaturan berhasil disimpan.");
   };
 
   const handleWipeData = () => {
-    if (window.confirm("🙀 Yakin mau menghapus SEMUA data? Ini tidak bisa dibatalkan lho!")) {
+    if (
+      window.confirm(
+        "Yakin mau menghapus SEMUA data? Ini tidak bisa dibatalkan."
+      )
+    ) {
       localStorage.clear();
-      toast.success("Semua data berhasil dihapus. Memulai lembaran baru... 🍂");
-      setTimeout(() => window.location.reload(), 1500);
+      toast.success("Semua data berhasil dihapus.");
+      setTimeout(() => window.location.reload(), 1200);
     }
   };
 
   return (
-    <div className="p-6 flex-1 overflow-y-auto custom-scrollbar bg-slate-50/50 min-h-full space-y-6 relative">
+    <div
+      className={`min-h-full flex-1 overflow-y-auto custom-scrollbar p-6 pb-28 space-y-6 relative transition-colors duration-300 ${currentTheme.mainBg} ${currentTheme.text}`}
+    >
       <Toaster position="top-center" />
-      
-      <div className="bg-gradient-to-br from-slate-800 to-slate-900 rounded-[2rem] p-8 text-white shadow-xl relative overflow-hidden">
+
+      {/* HEADER */}
+      <section
+        className={`relative overflow-hidden rounded-[2rem] border ${currentTheme.border} ${currentTheme.panelBg} p-8 shadow-sm backdrop-blur-md`}
+      >
         <div className="relative z-10">
-          <h1 className="text-3xl font-black mb-2 tracking-tight">Pengaturan ⚙️</h1>
-          <p className="text-slate-400 font-medium text-sm max-w-md">
-            Sesuaikan PurrFocus agar pas dengan gaya berburumu. Atur semuanya di sini.
+          <p
+            className={`mb-2 text-[10px] font-black uppercase tracking-[0.25em] ${currentTheme.muted}`}
+          >
+            PurrFocus
+          </p>
+
+          <h1 className={`text-3xl font-black tracking-tight ${currentTheme.text}`}>
+            Pengaturan
+          </h1>
+
+          <p
+            className={`mt-2 max-w-md text-sm font-medium leading-relaxed ${currentTheme.muted}`}
+          >
+            Atur suasana fokus, sesi, notifikasi, dan tampilan sesuai kebiasaanmu.
           </p>
         </div>
-        <span className="absolute -right-4 -top-8 text-[120px] opacity-5 grayscale rotate-12 pointer-events-none">🛠️</span>
-      </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 pb-10">
-        
-        {/* KARTU AUDIO */}
-        <div className="bg-white border border-slate-100 p-6 rounded-[2rem] shadow-sm">
-          <div className="flex items-center gap-3 mb-6 border-b border-slate-50 pb-4">
-            <span className="text-2xl">🔊</span>
-            <h2 className="text-lg font-black text-slate-800">Audio & Notifikasi</h2>
-          </div>
-          
-          <div className="space-y-6">
-            <div className="flex items-center justify-between">
+        <span className="absolute -right-5 -top-8 text-[120px] opacity-[0.06] grayscale pointer-events-none">
+          ⚙️
+        </span>
+      </section>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* AUDIO */}
+        <SettingCard
+          title="Audio & Notifikasi"
+          icon="🔊"
+          theme={currentTheme}
+        >
+          <SettingRow
+            title="Notifikasi Pop-up"
+            desc="Munculkan toast saat sesi selesai."
+            theme={currentTheme}
+          >
+            <Toggle
+              active={settings.notifications}
+              onClick={() =>
+                handleChange("notifications", !settings.notifications)
+              }
+              theme={currentTheme}
+            />
+          </SettingRow>
+
+          <div>
+            <div className="mb-2 flex items-center justify-between">
               <div>
-                <p className="font-bold text-slate-700">Notifikasi Pop-up</p>
-                <p className="text-[11px] font-medium text-slate-400">Munculkan toast saat sesi selesai</p>
+                <p className={`font-bold ${currentTheme.text}`}>
+                  Volume Alarm
+                </p>
+                <p className={`text-[11px] font-medium ${currentTheme.muted}`}>
+                  Atur keras pelan suara alarm sesi.
+                </p>
               </div>
-              <Toggle active={settings.notifications} onClick={() => handleChange('notifications', !settings.notifications)} />
+
+              <p className={`text-xs font-black ${currentTheme.muted}`}>
+                {settings.volume}%
+              </p>
             </div>
 
+            <input
+              type="range"
+              min="0"
+              max="100"
+              value={settings.volume}
+              onChange={(e) =>
+                handleChange("volume", parseInt(e.target.value) || 0)
+              }
+              className="w-full h-2 rounded-lg appearance-none cursor-pointer accent-current bg-black/10"
+            />
+          </div>
+        </SettingCard>
+
+        {/* FOKUS */}
+        <SettingCard
+          title="Preferensi Fokus"
+          icon="⏳"
+          theme={currentTheme}
+        >
+          <SettingRow
+            title="Durasi Sesi Fokus"
+            desc="Durasi satu sesi Pomodoro."
+            theme={currentTheme}
+          >
+            <NumberInput
+              value={settings.focusDuration}
+              min={1}
+              max={180}
+              onChange={(value) => handleChange("focusDuration", value)}
+              suffix="mnt"
+              theme={currentTheme}
+            />
+          </SettingRow>
+
+          <SettingRow
+            title="Jumlah Sesi per Siklus"
+            desc="Berapa sesi fokus sebelum istirahat panjang."
+            theme={currentTheme}
+          >
+            <NumberInput
+              value={settings.maxSessions}
+              min={1}
+              max={10}
+              onChange={(value) => handleChange("maxSessions", value)}
+              suffix="sesi"
+              theme={currentTheme}
+            />
+          </SettingRow>
+
+          <SettingRow
+            title="Otomatis Mulai Istirahat"
+            desc="Langsung masuk mode istirahat setelah fokus selesai."
+            theme={currentTheme}
+          >
+            <Toggle
+              active={settings.autoStartBreak}
+              onClick={() =>
+                handleChange("autoStartBreak", !settings.autoStartBreak)
+              }
+              theme={currentTheme}
+            />
+          </SettingRow>
+        </SettingCard>
+
+        {/* TEMA */}
+        <section
+          className={`lg:col-span-2 rounded-[2rem] border ${currentTheme.border} ${currentTheme.panelBg} p-6 shadow-sm backdrop-blur-md`}
+        >
+          <div className="mb-6 flex items-center gap-3 border-b border-black/5 pb-4">
+            <span className="text-2xl">🎨</span>
             <div>
-              <div className="flex justify-between items-center mb-2">
-                <p className="font-bold text-slate-700">Volume Suara Alarm</p>
-                <p className="text-xs font-black text-blue-500">{settings.volume}%</p>
-              </div>
-              <input 
-                type="range" min="0" max="100" value={settings.volume} 
-                onChange={(e) => handleChange('volume', parseInt(e.target.value))}
-                className="w-full h-2 bg-slate-100 rounded-lg appearance-none cursor-pointer accent-blue-500"
-              />
-            </div>
-          </div>
-        </div>
-
-        {/* KARTU PREFERENSI FOKUS */}
-        <div className="bg-white border border-slate-100 p-6 rounded-[2rem] shadow-sm">
-          <div className="flex items-center gap-3 mb-6 border-b border-slate-50 pb-4">
-            <span className="text-2xl">⏳</span>
-            <h2 className="text-lg font-black text-slate-800">Preferensi Fokus</h2>
-          </div>
-          
-          <div className="space-y-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="font-bold text-slate-700">Target Fokus Harian</p>
-                <p className="text-[11px] font-medium text-slate-400">Durasi untuk mencapai 100% skor harian</p>
-              </div>
-              <div className="flex items-center gap-2">
-                <input 
-                  type="number" 
-                  value={settings.dailyTarget}
-                  onChange={(e) => handleChange('dailyTarget', Math.max(1, parseInt(e.target.value) || 0))}
-                  className="w-16 bg-slate-50 border border-slate-200 text-slate-700 font-black text-center rounded-lg py-1.5 outline-none focus:border-blue-500 transition-all"
-                />
-                <span className="text-xs font-bold text-slate-400">Mnt</span>
-              </div>
-            </div>
-
-            {/* FITUR BARU: JUMLAH SESI PER SIKLUS */}
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="font-bold text-slate-700">Jumlah Sesi per Siklus</p>
-                <p className="text-[11px] font-medium text-slate-400">Berapa sesi fokus sebelum Istirahat Panjang</p>
-              </div>
-              <div className="flex items-center gap-2">
-                <input 
-                  type="number" 
-                  value={settings.maxSessions}
-                  min="1"
-                  max="10"
-                  onChange={(e) => handleChange('maxSessions', Math.max(1, parseInt(e.target.value) || 1))}
-                  className="w-16 bg-slate-50 border border-slate-200 text-slate-700 font-black text-center rounded-lg py-1.5 outline-none focus:border-blue-500 transition-all"
-                />
-                <span className="text-xs font-bold text-slate-400">Sesi</span>
-              </div>
-            </div>
-
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="font-bold text-slate-700">Otomatis Mulai Istirahat</p>
-                <p className="text-[11px] font-medium text-slate-400">Langsung pindah ke mode ikan setelah fokus</p>
-              </div>
-              <Toggle active={settings.autoStartBreak} onClick={() => handleChange('autoStartBreak', !settings.autoStartBreak)} />
-            </div>
-
-            <div className="flex items-center justify-between opacity-50 cursor-not-allowed">
-              <div>
-                <p className="font-bold text-slate-700">Mode Gelap (Dark Mode)</p>
-                <p className="text-[11px] font-medium text-slate-400">Fitur sedang dirakit oleh kucing bengkel</p>
-              </div>
-              <Toggle active={settings.darkMode} onClick={() => {}} disabled />
-            </div>
-          </div>
-        </div>
-
-        {/* DANGER ZONE */}
-        <div className="bg-red-50/50 border border-red-100 p-6 rounded-[2rem] shadow-sm lg:col-span-2 flex flex-col md:flex-row items-center justify-between gap-6">
-          <div className="flex items-center gap-4">
-            <div className="w-12 h-12 bg-red-100 text-red-500 rounded-2xl flex items-center justify-center text-2xl">
-              ⚠️
-            </div>
-            <div>
-              <h2 className="text-lg font-black text-red-600">Zona Berbahaya</h2>
-              <p className="text-[11px] font-medium text-red-400/80 max-w-md">
-                Menghapus seluruh data tugas, riwayat, dan statistik secara permanen. Tindakan ini tidak dapat dibatalkan.
+              <h2 className={`text-lg font-black ${currentTheme.text}`}>
+                Tema Tampilan
+              </h2>
+              <p className={`text-[11px] font-medium ${currentTheme.muted}`}>
+                Pilih warna tampilan berdasarkan warna kucing asli.
               </p>
             </div>
           </div>
-          <button 
+
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3">
+            {themeOptions.map((theme) => (
+              <ThemeCard
+                key={theme.id}
+                active={settings.theme === theme.id}
+                title={theme.title}
+                desc={theme.desc}
+                colors={theme.colors}
+                onClick={() => handleChange("theme", theme.id)}
+              />
+            ))}
+          </div>
+        </section>
+
+        {/* DANGER ZONE */}
+        <section className="lg:col-span-2 rounded-[2rem] border border-red-100 bg-red-50/70 p-6 shadow-sm flex flex-col md:flex-row items-center justify-between gap-6">
+          <div className="flex items-center gap-4">
+            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-red-100 text-2xl text-red-500">
+              ⚠️
+            </div>
+
+            <div>
+              <h2 className="text-lg font-black text-red-600">
+                Zona Berbahaya
+              </h2>
+              <p className="max-w-md text-[11px] font-medium leading-relaxed text-red-400/90">
+                Menghapus seluruh data tugas, riwayat, statistik, dan pengaturan.
+                Tindakan ini tidak dapat dibatalkan.
+              </p>
+            </div>
+          </div>
+
+          <button
             onClick={handleWipeData}
-            className="w-full md:w-auto px-6 py-3 rounded-xl bg-red-500 hover:bg-red-600 text-white font-black text-sm transition-all shadow-[0_0_15px_rgba(239,68,68,0.3)] hover:scale-105 active:scale-95 whitespace-nowrap"
+            className="w-full md:w-auto rounded-xl bg-red-500 px-6 py-3 text-sm font-black text-white shadow-[0_0_15px_rgba(239,68,68,0.25)] transition-all hover:scale-105 hover:bg-red-600 active:scale-95 whitespace-nowrap"
           >
             Hapus Semua Data
           </button>
-        </div>
+        </section>
       </div>
 
+      {/* SAVE BUTTON */}
       <div className="fixed bottom-10 right-10 z-50">
-        <button 
+        <button
           onClick={handleSave}
-          className="bg-slate-800 hover:bg-slate-900 text-white px-8 py-4 rounded-full font-black shadow-2xl hover:shadow-[0_10px_20px_rgba(0,0,0,0.2)] transition-all hover:scale-105 active:scale-95 flex items-center gap-2"
+          className={`flex items-center gap-2 rounded-full px-8 py-4 font-black shadow-2xl transition-all hover:scale-105 active:scale-95 ${currentTheme.button}`}
         >
-          <span>💾</span> Simpan Perubahan
+          <span>💾</span>
+          Simpan Perubahan
         </button>
       </div>
-
     </div>
   );
 }
 
-function Toggle({ active, onClick, disabled = false }) {
+function SettingCard({ title, icon, theme, children }) {
   return (
-    <button 
+    <section
+      className={`rounded-[2rem] border ${theme.border} ${theme.panelBg} p-6 shadow-sm backdrop-blur-md`}
+    >
+      <div className="mb-6 flex items-center gap-3 border-b border-black/5 pb-4">
+        <span className="text-2xl">{icon}</span>
+        <h2 className={`text-lg font-black ${theme.text}`}>{title}</h2>
+      </div>
+
+      <div className="space-y-6">{children}</div>
+    </section>
+  );
+}
+
+function SettingRow({ title, desc, theme, children }) {
+  return (
+    <div className="flex items-center justify-between gap-4">
+      <div>
+        <p className={`font-bold ${theme.text}`}>{title}</p>
+        <p className={`text-[11px] font-medium ${theme.muted}`}>{desc}</p>
+      </div>
+
+      <div className="shrink-0">{children}</div>
+    </div>
+  );
+}
+
+function NumberInput({ value, onChange, min = 0, max, suffix, theme }) {
+  const handleInput = (e) => {
+    const parsed = parseInt(e.target.value) || min;
+    const safeValue = max ? Math.min(max, Math.max(min, parsed)) : Math.max(min, parsed);
+    onChange(safeValue);
+  };
+
+  return (
+    <div className="flex items-center gap-2">
+      <input
+        type="number"
+        value={value}
+        min={min}
+        max={max}
+        onChange={handleInput}
+        className={`w-16 rounded-lg border border-black/10 bg-white/60 py-1.5 text-center font-black outline-none transition-all focus:border-black/30 ${theme.text}`}
+      />
+      <span className={`text-xs font-bold ${theme.muted}`}>{suffix}</span>
+    </div>
+  );
+}
+
+function Toggle({ active, onClick, disabled = false, theme }) {
+  return (
+    <button
+      type="button"
       onClick={onClick}
       disabled={disabled}
-      className={`relative w-12 h-6 rounded-full transition-colors duration-300 ${
-        active ? 'bg-blue-500' : 'bg-slate-200'
-      } ${disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+      className={`relative h-6 w-12 rounded-full transition-colors duration-300 ${
+        active ? "bg-black/70" : "bg-black/10"
+      } ${disabled ? "cursor-not-allowed opacity-50" : "cursor-pointer"}`}
     >
-      <div 
-        className={`absolute top-1 bg-white w-4 h-4 rounded-full shadow-sm transition-transform duration-300 ${
-          active ? 'left-7' : 'left-1'
+      <div
+        className={`absolute top-1 h-4 w-4 rounded-full bg-white shadow-sm transition-transform duration-300 ${
+          active ? "translate-x-7" : "translate-x-1"
         }`}
       />
     </button>

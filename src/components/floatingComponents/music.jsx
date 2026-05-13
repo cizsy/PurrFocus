@@ -1,136 +1,212 @@
-import React, { useState, useEffect, useRef } from 'react';
-import toast from 'react-hot-toast';
+import React, { useEffect, useRef, useState } from "react";
+import toast from "react-hot-toast";
+import { ChevronDown, ChevronUp, Music, X } from "lucide-react";
+
+import { purrThemes, DEFAULT_THEME } from "../purrThemes";
+
+const getSavedThemeName = () => {
+  try {
+    const savedSettings = JSON.parse(
+      localStorage.getItem("purrfocus_settings") || "{}"
+    );
+
+    return savedSettings.theme || DEFAULT_THEME;
+  } catch {
+    return DEFAULT_THEME;
+  }
+};
 
 function FloatingMusic({ onClose }) {
-  const [videoId, setVideoId] = useState('vvThzcBfnyc'); // Default Lofi Girl
-  const [tempLink, setTempLink] = useState('');
+  const [videoId, setVideoId] = useState("vvThzcBfnyc");
+  const [tempLink, setTempLink] = useState("");
   const [isMinimized, setIsMinimized] = useState(false);
 
-  // --- Fitur Drag & Drop ---
+  const [themeName, setThemeName] = useState(getSavedThemeName);
+  const theme = purrThemes[themeName] || purrThemes[DEFAULT_THEME];
+
+  const surface = theme.cardBg || theme.panelBg;
+  const softSurface = theme.cardSoft || "bg-white/40";
+  const divider = theme.divider || "border-black/5";
+
   const [position, setPosition] = useState({ x: 0, y: 0 });
   const [isDragging, setIsDragging] = useState(false);
   const dragStartRef = useRef({ x: 0, y: 0 });
 
-  const handlePointerDown = (e) => {
-    // LUBANG UX DITUTUP: Mencegah drag saat user sedang mengeklik tombol atau input teks
-    if (e.target.closest('button') || e.target.closest('input')) return;
-    
+  useEffect(() => {
+    const handleThemeChange = (event) => {
+      setThemeName(event.detail || getSavedThemeName());
+    };
+
+    window.addEventListener("purrfocus-theme-change", handleThemeChange);
+
+    return () => {
+      window.removeEventListener("purrfocus-theme-change", handleThemeChange);
+    };
+  }, []);
+
+  const handlePointerDown = (event) => {
+    if (
+      event.target.closest("button") ||
+      event.target.closest("input") ||
+      event.target.closest("iframe")
+    ) {
+      return;
+    }
+
     setIsDragging(true);
+
     dragStartRef.current = {
-      x: e.clientX - position.x,
-      y: e.clientY - position.y
+      x: event.clientX - position.x,
+      y: event.clientY - position.y,
     };
   };
 
   useEffect(() => {
-    const handlePointerMove = (e) => {
+    const handlePointerMove = (event) => {
       if (!isDragging) return;
+
       setPosition({
-        x: e.clientX - dragStartRef.current.x,
-        y: e.clientY - dragStartRef.current.y
+        x: event.clientX - dragStartRef.current.x,
+        y: event.clientY - dragStartRef.current.y,
       });
     };
 
-    const handlePointerUp = () => setIsDragging(false);
+    const handlePointerUp = () => {
+      setIsDragging(false);
+    };
 
     if (isDragging) {
-      window.addEventListener('pointermove', handlePointerMove);
-      window.addEventListener('pointerup', handlePointerUp);
+      window.addEventListener("pointermove", handlePointerMove);
+      window.addEventListener("pointerup", handlePointerUp);
     }
 
     return () => {
-      window.removeEventListener('pointermove', handlePointerMove);
-      window.removeEventListener('pointerup', handlePointerUp);
+      window.removeEventListener("pointermove", handlePointerMove);
+      window.removeEventListener("pointerup", handlePointerUp);
     };
   }, [isDragging]);
 
-  // LUBANG BUG DITUTUP: Mengekstrak ID dari URL utuh
-  const handleUpdateLink = (e) => {
-    e.preventDefault();
+  const extractYoutubeId = (input) => {
+    const trimmed = input.trim();
+
+    const match = trimmed.match(
+      /(?:youtu\.be\/|youtube\.com\/(?:[^/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtube\.com\/shorts\/)([^"&?/\\s]{11})/
+    );
+
+    if (match && match[1]) return match[1];
+
+    if (/^[a-zA-Z0-9_-]{11}$/.test(trimmed)) return trimmed;
+
+    return null;
+  };
+
+  const handleUpdateLink = (event) => {
+    event.preventDefault();
+
     if (!tempLink.trim()) return;
 
-    // Regex canggih untuk mengambil ID dari berbagai format link YouTube
-    const match = tempLink.match(/(?:youtu\.be\/|youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/);
-    
-    if (match && match[1]) {
-      setVideoId(match[1]); // Jika link utuh, ambil ID-nya
-      setTempLink(''); // Kosongkan input
-      toast.success("Musik berhasil diganti! 🎵");
-    } else if (tempLink.length === 11) {
-      setVideoId(tempLink); // Jika user memang cuma paste 11 digit ID
-      setTempLink('');
-      toast.success("Musik berhasil diganti! 🎵");
-    } else {
-      toast.error("Link YouTube tidak valid! 🙀");
+    const nextVideoId = extractYoutubeId(tempLink);
+
+    if (!nextVideoId) {
+      toast.error("Link YouTube tidak valid.");
+      return;
     }
+
+    setVideoId(nextVideoId);
+    setTempLink("");
+    toast.success("Musik berhasil diganti.");
   };
 
   return (
-    <div 
+    <div
       style={{ transform: `translate(${position.x}px, ${position.y}px)` }}
-      className="absolute z-50 w-80 bg-white/80 backdrop-blur-xl p-4 rounded-3xl shadow-2xl border border-white/60 flex flex-col transition-all"
+      className={`absolute z-50 flex w-80 flex-col rounded-[2rem] border ${theme.border} ${surface} p-4 shadow-2xl backdrop-blur-xl transition-all`}
     >
-      {/* Header Drag Area */}
-      <div 
-        className="flex justify-between items-center cursor-grab active:cursor-grabbing mb-2"
+      {/* HEADER */}
+      <div
+        className={`flex cursor-grab items-center justify-between border-b ${divider} pb-3 active:cursor-grabbing`}
         onPointerDown={handlePointerDown}
       >
         <div className="pointer-events-none flex items-center gap-2">
-          <span className="text-lg drop-shadow-sm">🎵</span>
+          <div className={`flex h-9 w-9 items-center justify-center rounded-2xl ${softSurface}`}>
+            <Music size={18} strokeWidth={2.7} />
+          </div>
+
           <div>
-            <h4 className="text-[9px] font-black uppercase tracking-widest text-slate-500">Lofi Player</h4>
+            <p className={`text-[9px] font-black uppercase tracking-[0.25em] ${theme.muted}`}>
+              Musik Fokus
+            </p>
+            <h3 className={`text-sm font-black ${theme.text}`}>
+              Purr Sound
+            </h3>
           </div>
         </div>
-        <div className="flex gap-1">
-           <button 
-            onClick={() => setIsMinimized(!isMinimized)}
-            className="w-7 h-7 flex items-center justify-center rounded-full bg-slate-100 text-slate-500 hover:bg-slate-200 transition-colors text-xs"
+
+        <div className="flex gap-1.5">
+          <button
+            onClick={() => setIsMinimized((prev) => !prev)}
+            className={`flex h-8 w-8 items-center justify-center rounded-full ${softSurface} ${theme.muted} transition-all hover:scale-105 active:scale-95`}
             title={isMinimized ? "Perbesar" : "Perkecil"}
           >
-            {isMinimized ? '🔽' : '🔼'}
+            {isMinimized ? (
+              <ChevronDown size={15} strokeWidth={3} />
+            ) : (
+              <ChevronUp size={15} strokeWidth={3} />
+            )}
           </button>
-          <button 
+
+          <button
             onClick={onClose}
-            className="w-7 h-7 flex items-center justify-center rounded-full bg-red-50 text-red-400 hover:bg-red-500 hover:text-white transition-colors text-xs"
+            className="flex h-8 w-8 items-center justify-center rounded-full bg-red-500/10 text-red-500 transition-all hover:bg-red-500 hover:text-white active:scale-95"
             title="Tutup"
           >
-            ✕
+            <X size={15} strokeWidth={3} />
           </button>
         </div>
       </div>
 
-      {/* Body */}
-      <div className={`transition-all duration-300 overflow-hidden ${isMinimized ? 'opacity-0 h-0 w-0 pointer-events-none' : 'opacity-100 mt-2'}`}>
-        
-        <form onSubmit={handleUpdateLink} className="flex gap-2 mb-3">
-          <input 
+      {/* BODY */}
+      <div
+        className={`overflow-hidden transition-all duration-300 ${
+          isMinimized
+            ? "h-0 opacity-0 pointer-events-none"
+            : "mt-4 opacity-100"
+        }`}
+      >
+        <form onSubmit={handleUpdateLink} className="mb-3 flex gap-2">
+          <input
             type="text"
-            placeholder="Tempel link YouTube di sini..."
+            placeholder="Tempel link YouTube..."
             value={tempLink}
-            onChange={(e) => setTempLink(e.target.value)}
-            className="flex-1 bg-white/50 border border-white/60 rounded-xl px-3 py-2 text-[11px] font-medium text-slate-700 outline-none focus:ring-2 focus:ring-[#4a7ec2]/50 focus:bg-white transition-all placeholder:text-slate-400"
+            onChange={(event) => setTempLink(event.target.value)}
+            className={`min-w-0 flex-1 rounded-xl border ${theme.border} ${softSurface} px-3 py-2 text-[11px] font-bold outline-none transition-all placeholder:opacity-50 focus:ring-2 ${
+              theme.ring || "ring-black/10"
+            } ${theme.text}`}
           />
-          <button type="submit" className="bg-[#4a7ec2] hover:bg-[#2d5c94] text-white text-[9px] px-3 py-2 rounded-xl font-black uppercase tracking-wider transition-colors active:scale-95 shadow-sm">
+
+          <button
+            type="submit"
+            className={`rounded-xl px-3 py-2 text-[9px] font-black uppercase tracking-wider transition-all active:scale-95 ${theme.button}`}
+          >
             GO
           </button>
         </form>
 
-        {/* Iframe Container */}
-        <div className="relative rounded-xl overflow-hidden bg-slate-900 aspect-video shadow-inner border border-slate-200/50">
-           <iframe
-              width="100%"
-              height="100%"
-              // LUBANG ATURAN BROWSER DITUTUP: Set autoplay=0 agar tidak error
-              src={`https://www.youtube.com/embed/${videoId}?autoplay=0&rel=0`}
-              title="YouTube music"
-              frameBorder="0"
-              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-              allowFullScreen
-              className="absolute inset-0"
-           ></iframe>
+        <div className="relative aspect-video overflow-hidden rounded-[1.2rem] border border-black/10 bg-black shadow-inner">
+          <iframe
+            width="100%"
+            height="100%"
+            src={`https://www.youtube.com/embed/${videoId}?autoplay=0&rel=0`}
+            title="YouTube music"
+            frameBorder="0"
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+            allowFullScreen
+            className="absolute inset-0"
+          />
         </div>
-        <p className="text-[8px] font-bold text-slate-400 mt-2 text-center uppercase tracking-widest">
-          Klik tombol Play untuk memutar musik 🎧
+
+        <p className={`mt-3 text-center text-[9px] font-black uppercase tracking-[0.2em] ${theme.muted}`}>
+          Klik play untuk memutar musik
         </p>
       </div>
     </div>

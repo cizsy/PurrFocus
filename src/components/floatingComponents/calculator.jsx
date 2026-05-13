@@ -1,14 +1,47 @@
-import React, { useState, useEffect, useCallback, useRef } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
+import { Calculator, Delete, X } from "lucide-react";
+
+import { purrThemes, DEFAULT_THEME } from "../purrThemes";
+
+const getSavedThemeName = () => {
+  try {
+    const savedSettings = JSON.parse(
+      localStorage.getItem("purrfocus_settings") || "{}"
+    );
+
+    return savedSettings.theme || DEFAULT_THEME;
+  } catch {
+    return DEFAULT_THEME;
+  }
+};
 
 function FloatingCalculator({ onClose }) {
   const [input, setInput] = useState("");
-  
-  // State & Ref untuk fitur Drag
+
+  const [themeName, setThemeName] = useState(getSavedThemeName);
+  const theme = purrThemes[themeName] || purrThemes[DEFAULT_THEME];
+
+  const surface = theme.cardBg || theme.panelBg;
+  const softSurface = theme.cardSoft || "bg-white/40";
+  const strongSurface = theme.cardStrong || "bg-white/60";
+  const divider = theme.divider || "border-black/5";
+
   const [position, setPosition] = useState({ x: 0, y: 0 });
   const [isDragging, setIsDragging] = useState(false);
   const dragStartRef = useRef({ x: 0, y: 0 });
 
-  // --- Logika Kalkulator (Sama seperti sebelumnya) ---
+  useEffect(() => {
+    const handleThemeChange = (event) => {
+      setThemeName(event.detail || getSavedThemeName());
+    };
+
+    window.addEventListener("purrfocus-theme-change", handleThemeChange);
+
+    return () => {
+      window.removeEventListener("purrfocus-theme-change", handleThemeChange);
+    };
+  }, []);
+
   const handleClick = useCallback((value) => {
     setInput((prev) => {
       if (prev === "Error") return value;
@@ -35,6 +68,7 @@ function FloatingCalculator({ onClose }) {
 
       const openParens = (expression.match(/\(/g) || []).length;
       const closeParens = (expression.match(/\)/g) || []).length;
+
       if (openParens > closeParens) {
         expression += ")".repeat(openParens - closeParens);
       }
@@ -42,7 +76,9 @@ function FloatingCalculator({ onClose }) {
       const result = new Function(`return ${expression}`)();
       const finalResult = Math.round(result * 1e10) / 1e10;
 
-      if (isNaN(finalResult) || !isFinite(finalResult)) throw new Error();
+      if (Number.isNaN(finalResult) || !Number.isFinite(finalResult)) {
+        throw new Error();
+      }
 
       setInput(finalResult.toString());
     } catch {
@@ -51,11 +87,12 @@ function FloatingCalculator({ onClose }) {
     }
   }, [input]);
 
-  // --- Fitur Dukungan Keyboard ---
   useEffect(() => {
-    const handleKeyDown = (e) => {
-      const key = e.key;
-      if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+    const handleKeyDown = (event) => {
+      const key = event.key;
+      const tagName = event.target.tagName;
+
+      if (tagName === "INPUT" || tagName === "TEXTAREA") return;
 
       if (/[0-9]/.test(key)) handleClick(key);
       else if (key === "+") handleClick("+");
@@ -65,39 +102,44 @@ function FloatingCalculator({ onClose }) {
       else if (key === "^") handleClick("^");
       else if (key === "(") handleClick("(");
       else if (key === ")") handleClick(")");
+      else if (key === ".") handleClick(".");
       else if (key === "Enter" || key === "=") {
-        e.preventDefault();
+        event.preventDefault();
         handleCalculate();
       } else if (key === "Backspace") {
-        e.preventDefault();
+        event.preventDefault();
         handleDelete();
       } else if (key === "Escape") {
-        e.preventDefault();
+        event.preventDefault();
         handleClear();
       }
     };
 
     window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
+
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+    };
   }, [handleClick, handleCalculate, handleClear, handleDelete]);
 
-  // --- Fitur Drag & Drop ---
-  const handlePointerDown = (e) => {
+  const handlePointerDown = (event) => {
+    if (event.target.closest("button")) return;
+
     setIsDragging(true);
-    // Simpan titik awal klik dikurangi posisi saat ini agar tidak loncat
+
     dragStartRef.current = {
-      x: e.clientX - position.x,
-      y: e.clientY - position.y
+      x: event.clientX - position.x,
+      y: event.clientY - position.y,
     };
   };
 
   useEffect(() => {
-    const handlePointerMove = (e) => {
+    const handlePointerMove = (event) => {
       if (!isDragging) return;
-      // Update posisi berdasarkan pergerakan mouse/touch
+
       setPosition({
-        x: e.clientX - dragStartRef.current.x,
-        y: e.clientY - dragStartRef.current.y
+        x: event.clientX - dragStartRef.current.x,
+        y: event.clientY - dragStartRef.current.y,
       });
     };
 
@@ -106,13 +148,13 @@ function FloatingCalculator({ onClose }) {
     };
 
     if (isDragging) {
-      window.addEventListener('pointermove', handlePointerMove);
-      window.addEventListener('pointerup', handlePointerUp);
+      window.addEventListener("pointermove", handlePointerMove);
+      window.addEventListener("pointerup", handlePointerUp);
     }
 
     return () => {
-      window.removeEventListener('pointermove', handlePointerMove);
-      window.removeEventListener('pointerup', handlePointerUp);
+      window.removeEventListener("pointermove", handlePointerMove);
+      window.removeEventListener("pointerup", handlePointerUp);
     };
   }, [isDragging]);
 
@@ -121,100 +163,135 @@ function FloatingCalculator({ onClose }) {
     { label: "√(", display: "√", type: "sci" },
     { label: "(", display: "(", type: "sci" },
     { label: ")", display: ")", type: "sci" },
-    { label: "7", display: "7", type: "num" }, 
-    { label: "8", display: "8", type: "num" }, 
-    { label: "9", display: "9", type: "num" }, 
+
+    { label: "7", display: "7", type: "num" },
+    { label: "8", display: "8", type: "num" },
+    { label: "9", display: "9", type: "num" },
     { label: "÷", display: "÷", type: "op" },
-    { label: "4", display: "4", type: "num" }, 
-    { label: "5", display: "5", type: "num" }, 
-    { label: "6", display: "6", type: "num" }, 
+
+    { label: "4", display: "4", type: "num" },
+    { label: "5", display: "5", type: "num" },
+    { label: "6", display: "6", type: "num" },
     { label: "×", display: "×", type: "op" },
-    { label: "1", display: "1", type: "num" }, 
-    { label: "2", display: "2", type: "num" }, 
-    { label: "3", display: "3", type: "num" }, 
+
+    { label: "1", display: "1", type: "num" },
+    { label: "2", display: "2", type: "num" },
+    { label: "3", display: "3", type: "num" },
     { label: "-", display: "-", type: "op" },
-    { label: "0", display: "0", type: "num" }, 
-    { label: ".", display: ".", type: "num" }, 
-    { label: "=", display: "=", type: "eq" }, 
-    { label: "+", display: "+", type: "op" }
+
+    { label: "0", display: "0", type: "num" },
+    { label: ".", display: ".", type: "num" },
+    { label: "=", display: "=", type: "eq" },
+    { label: "+", display: "+", type: "op" },
   ];
 
   return (
-    <div 
-      className="absolute bottom-25 left-13 z-60 pointer-events-none"
+    <div
+      className="absolute bottom-25 left-13 z-[60] pointer-events-none"
       style={{
         transform: `translate(${position.x}px, ${position.y}px)`,
-        transition: isDragging ? 'none' : 'transform 0.1s ease-out' // Smooth saat dilepas
+        transition: isDragging ? "none" : "transform 0.1s ease-out",
       }}
     >
-      <div className="w-60 bg-white rounded-2xl shadow-2xl border border-slate-100 p-4 pointer-events-auto animate-in slide-in-from-bottom-5 duration-300">
-        
-        {/* Header - Berfungsi sebagai DRAG HANDLE */}
-        <div 
-          className="flex justify-between items-center mb-3 px-1 cursor-grab active:cursor-grabbing select-none"
+      <div
+        className={`w-64 rounded-[2rem] border ${theme.border} ${surface} p-4 shadow-2xl backdrop-blur-xl pointer-events-auto`}
+      >
+        {/* HEADER */}
+        <div
+          className={`mb-3 flex cursor-grab items-center justify-between border-b ${divider} pb-3 select-none active:cursor-grabbing`}
           onPointerDown={handlePointerDown}
         >
-          <div>
-            <h4 className="text-[8px] font-black uppercase tracking-wider text-slate-400 pointer-events-none">Quick Tools</h4>
-            <h3 className="text-[11px] font-black text-slate-800 pointer-events-none">Kalkulator 🧮</h3>
+          <div className="pointer-events-none flex items-center gap-2">
+            <div
+              className={`flex h-9 w-9 items-center justify-center rounded-2xl ${softSurface}`}
+            >
+              <Calculator size={18} strokeWidth={2.7} />
+            </div>
+
+            <div>
+              <p
+                className={`text-[8px] font-black uppercase tracking-[0.22em] ${theme.muted}`}
+              >
+                Quick Tools
+              </p>
+              <h3 className={`text-sm font-black ${theme.text}`}>
+                Kalkulator
+              </h3>
+            </div>
           </div>
-          <button 
-            onClick={(e) => {
-              e.stopPropagation(); // Biar klik tombol close nggak memicu drag
+
+          <button
+            onClick={(event) => {
+              event.stopPropagation();
               onClose();
             }}
-            className="w-6 h-6 flex items-center justify-center rounded-full bg-slate-50 text-slate-400 hover:bg-red-50 hover:text-red-400 transition-colors text-[10px] cursor-pointer"
+            className="flex h-8 w-8 items-center justify-center rounded-full bg-red-500/10 text-red-500 transition-all hover:bg-red-500 hover:text-white active:scale-95"
+            title="Tutup"
           >
-            ✕
+            <X size={15} strokeWidth={3} />
           </button>
         </div>
 
-        {/* Display */}
-        <div className="bg-slate-900 rounded-xl p-3 mb-3 shadow-inner flex flex-col justify-end h-17">
-          <div className="text-2xl font-mono text-emerald-400 text-right overflow-x-auto whitespace-nowrap scrollbar-hide pb-0.5">
+        {/* DISPLAY */}
+        <div
+          className={`mb-3 flex h-20 flex-col justify-end rounded-[1.3rem] border ${theme.border} ${softSurface} p-3 shadow-inner`}
+        >
+          <div
+            className={`overflow-x-auto whitespace-nowrap pb-0.5 text-right font-mono text-2xl font-black scrollbar-hide ${
+              input === "Error" ? "text-red-500" : theme.text
+            }`}
+          >
             {input || "0"}
           </div>
         </div>
 
-        {/* Control Actions (Clear & Delete) */}
-        <div className="flex gap-1.5 mb-2">
+        {/* CLEAR + DELETE */}
+        <div className="mb-2 flex gap-1.5">
           <button
             onClick={handleClear}
-            className="flex-1 py-2 rounded-lg bg-red-50 text-red-500 text-[10px] font-black uppercase tracking-widest hover:bg-red-100 active:scale-95 transition-all"
+            className="flex-1 rounded-xl bg-red-500/10 py-2 text-[10px] font-black uppercase tracking-widest text-red-500 transition-all hover:bg-red-500 hover:text-white active:scale-95"
           >
             AC
           </button>
+
           <button
             onClick={handleDelete}
-            className="w-14 py-2 rounded-lg bg-slate-100 text-slate-500 flex items-center justify-center hover:bg-slate-200 active:scale-95 transition-all"
+            className={`flex w-14 items-center justify-center rounded-xl py-2 transition-all active:scale-95 ${strongSurface} ${theme.muted}`}
+            title="Hapus satu karakter"
           >
-            ⌫
+            <Delete size={15} strokeWidth={2.7} />
           </button>
         </div>
 
-        {/* Buttons Grid */}
+        {/* BUTTON GRID */}
         <div className="grid grid-cols-4 gap-1.5">
-          {buttons.map((btn, idx) => (
+          {buttons.map((button, index) => (
             <button
-              key={idx}
-              onClick={() => btn.label === "=" ? handleCalculate() : handleClick(btn.label)}
-              className={`h-9 rounded-lg font-bold text-sm transition-all active:scale-95 ${
-                btn.type === 'op' 
-                  ? 'bg-emerald-50 text-emerald-600 hover:bg-emerald-100' 
-                  : btn.type === 'sci'
-                  ? 'bg-indigo-50 text-indigo-500 hover:bg-indigo-100 text-xs'
-                  : btn.type === 'eq'
-                  ? 'bg-emerald-500 text-white shadow-md shadow-emerald-200 hover:bg-emerald-600 text-lg'
-                  : 'bg-slate-50 text-slate-700 hover:bg-slate-100'
+              key={index}
+              onClick={() =>
+                button.label === "="
+                  ? handleCalculate()
+                  : handleClick(button.label)
+              }
+              className={`h-10 rounded-xl text-sm font-black transition-all active:scale-95 ${
+                button.type === "eq"
+                  ? theme.button
+                  : button.type === "op"
+                  ? `${softSurface} ${theme.text} hover:opacity-80`
+                  : button.type === "sci"
+                  ? `${strongSurface} ${theme.muted} text-xs hover:opacity-80`
+                  : `${strongSurface} ${theme.text} hover:opacity-80`
               }`}
             >
-              {btn.display}
+              {button.display}
             </button>
           ))}
         </div>
 
-        <p className="text-[7px] text-slate-300 text-center mt-3 font-bold uppercase tracking-[0.2em] select-none">
-          Purrfocus Math Engine
+        <p
+          className={`mt-3 text-center text-[7px] font-black uppercase tracking-[0.22em] select-none ${theme.muted}`}
+        >
+          PurrFocus Math Engine
         </p>
       </div>
     </div>

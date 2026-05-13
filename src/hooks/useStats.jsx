@@ -1,88 +1,193 @@
-import { useMemo } from 'react';
+import { useMemo } from "react";
+
+const getLocalDateKey = (dateInput) => {
+  const date = new Date(dateInput);
+
+  if (Number.isNaN(date.getTime())) return null;
+
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+
+  return `${year}-${month}-${day}`;
+};
+
+const getTodayKey = () => {
+  return getLocalDateKey(new Date());
+};
+
+const getStartOfWeekMonday = () => {
+  const today = new Date();
+  const day = today.getDay();
+
+  // getDay(): Minggu = 0, Senin = 1, dst.
+  const diffToMonday = day === 0 ? -6 : 1 - day;
+
+  const monday = new Date(today);
+  monday.setHours(0, 0, 0, 0);
+  monday.setDate(today.getDate() + diffToMonday);
+
+  return monday;
+};
+
+const formatFocusTime = (totalMinutes) => {
+  const minutes = Number(totalMinutes) || 0;
+  const hours = Math.floor(minutes / 60);
+  const mins = minutes % 60;
+
+  if (hours === 0) return `${mins}m`;
+  if (mins === 0) return `${hours}j`;
+
+  return `${hours}j ${mins}m`;
+};
+
+const safeReadJSON = (key, fallback) => {
+  try {
+    const saved = localStorage.getItem(key);
+    return saved ? JSON.parse(saved) : fallback;
+  } catch {
+    return fallback;
+  }
+};
 
 function useStats(tasks = [], focusLogs = []) {
   const stats = useMemo(() => {
-    const todayStr = new Date().toDateString();
+    const todayKey = getTodayKey();
 
-    // 1. Hitung Sesi & Fokus Hari Ini
-    const todayLogs = focusLogs.filter(log => new Date(log.date).toDateString() === todayStr);
+    // 1. Fokus hari ini
+    const todayLogs = focusLogs.filter((log) => {
+      if (!log.date) return false;
+      return getLocalDateKey(log.date) === todayKey;
+    });
+
     const sessionCount = todayLogs.length;
 
-    const totalMinutesToday = todayLogs.reduce((acc, curr) => acc + curr.duration, 0);
-    const hours = Math.floor(totalMinutesToday / 60);
-    const mins = totalMinutesToday % 60;
-    const focusTimeToday = `${hours}j ${mins}m`;
+    const totalMinutesToday = todayLogs.reduce((total, log) => {
+      return total + (Number(log.duration) || 0);
+    }, 0);
 
-    // 2. Logika Streak
+    const focusTimeToday = formatFocusTime(totalMinutesToday);
+
+    // 2. Weekly distribution: Senin - Minggu minggu ini
+    const startOfWeek = getStartOfWeekMonday();
+
+    const weeklyDistribution = Array.from({ length: 7 }, (_, index) => {
+      const date = new Date(startOfWeek);
+      date.setDate(startOfWeek.getDate() + index);
+
+      const dateKey = getLocalDateKey(date);
+
+      return focusLogs
+        .filter((log) => {
+          if (!log.date) return false;
+          return getLocalDateKey(log.date) === dateKey;
+        })
+        .reduce((total, log) => {
+          return total + (Number(log.duration) || 0);
+        }, 0);
+    });
+
+    // 3. Streak
+    const focusDateKeys = [
+      ...new Set(
+        focusLogs
+          .filter((log) => log.date)
+          .map((log) => getLocalDateKey(log.date))
+          .filter(Boolean)
+      ),
+    ];
+
     const calculateStreak = () => {
-      if (focusLogs.length === 0) return 0;
-      const dates = [...new Set(focusLogs.map(l => new Date(l.date).toDateString()))]
-        .map(d => new Date(d))
-        .sort((a, b) => b - a);
+      if (focusDateKeys.length === 0) return 0;
 
-      const yesterday = new Date();
-      yesterday.setDate(yesterday.getDate() - 1);
-      
-      if (dates[0].toDateString() !== todayStr && dates[0].toDateString() !== yesterday.toDateString()) {
-        return 0;
+      let streak = 0;
+
+      const checker = new Date();
+      checker.setHours(0, 0, 0, 0);
+
+      while (true) {
+        const key = getLocalDateKey(checker);
+
+        if (!focusDateKeys.includes(key)) break;
+
+        streak += 1;
+        checker.setDate(checker.getDate() - 1);
       }
 
-      let streak = 1;
-      for (let i = 0; i < dates.length - 1; i++) {
-        const diff = (dates[i] - dates[i+1]) / (1000 * 60 * 60 * 24);
-        if (diff <= 1.1) streak++;
-        else break;
-      }
       return streak;
     };
 
-    // 3. Grafik Mingguan 
-    const weeklyDistribution = Array(7).fill(0).map((_, i) => {
-      const d = new Date();
-      d.setDate(d.getDate() - (6 - i));
-      const dateStr = d.toDateString();
-      return focusLogs
-        .filter(log => new Date(log.date).toDateString() === dateStr)
-        .reduce((acc, curr) => acc + curr.duration, 0);
-    });
+    // 4. Completed tasks
+    const completedTasks = tasks.filter((task) => {
+      const subtasks = task.subtasks || [];
 
-    // 4. Distribusi Kategori
-    const categories = ["Umum", "Kerja", "Belajar", "Hobby"];
-    const categoryDistribution = categories.map(cat => {
-      const count = tasks.filter(t => t.category === cat).length;
-      const val = tasks.length === 0 ? 0 : Math.round((count / tasks.length) * 100);
-      return { label: cat, value: val, color: getCatColor(cat) };
-    });
+      if (subtasks.length > 0) {
+        return subtasks.every((subtask) => subtask.completed);
+      }
 
-    // 5. SISTEM SKOR BARU (TOTAL XP / IKAN) 🐟
+      return task.status === "done" || task.status === "completed";
+    }).length;
+
+    // 5. Category distribution
+    const categoryCounts = tasks.reduce((result, task) => {
+      const category = task.category || "Umum";
+      result[category] = (result[category] || 0) + 1;
+      return result;
+    }, {});
+
+    const totalCategoryCount = Object.values(categoryCounts).reduce(
+      (total, value) => total + value,
+      0
+    );
+
+    const categoryDistribution =
+      totalCategoryCount === 0
+        ? []
+        : Object.entries(categoryCounts)
+            .map(([label, count]) => ({
+              label,
+              value: Math.round((count / totalCategoryCount) * 100),
+            }))
+            .filter((category) => category.value > 0)
+            .sort((a, b) => b.value - a.value);
+
+    // 6. Total XP
     const calculateTotalXP = () => {
-      
-      // DIUBAH: 1 Menit Fokus = 2 XP (Jadi kalau 25 menit Pomodoro = 50 XP, 1 menit Stopwatch = 2 XP)
-      const sessionPoints = focusLogs.reduce((acc, log) => acc + (log.duration * 2), 0); 
-      
-      const history = JSON.parse(localStorage.getItem("purrfocus_history") || "[]");
+      const sessionPoints = focusLogs.reduce((total, log) => {
+        return total + (Number(log.duration) || 0) * 2;
+      }, 0);
+
+      const history = safeReadJSON("purrfocus_history", []);
       const allTasks = [...tasks, ...history];
-      const subtaskPoints = allTasks.reduce((acc, t) => 
-        acc + (t.subtasks?.filter(s => s.completed).length || 0) * 10
-      , 0);
-      const taskCompletedBonus = allTasks.filter(t => 
-        t.subtasks?.length > 0 && t.subtasks.every(s => s.completed)
-      ).length * 100;
-      
+
+      const subtaskPoints = allTasks.reduce((total, task) => {
+        const completedSubtasks =
+          task.subtasks?.filter((subtask) => subtask.completed).length || 0;
+
+        return total + completedSubtasks * 10;
+      }, 0);
+
+      const taskCompletedBonus =
+        allTasks.filter((task) => {
+          const subtasks = task.subtasks || [];
+          return subtasks.length > 0 && subtasks.every((subtask) => subtask.completed);
+        }).length * 100;
+
       return sessionPoints + subtaskPoints + taskCompletedBonus;
     };
-    // 6. SISTEM SKOR PERSENTASE (Dikembalikan lagi!) 🎯
-    const calculateScore = () => {
-      // 1. Ambil pengaturan yang disave user
-      const savedSettings = JSON.parse(localStorage.getItem('purrfocus_settings') || '{}');
-      // 2. Gunakan target user, kalau belum pernah disave, defaultnya 120 menit
-      const dailyTargetMinutes = savedSettings.dailyTarget || 120; 
 
-      if (totalMinutesToday === 0) return 0;
-      if (totalMinutesToday >= dailyTargetMinutes) return 100; // Maksimal 100%
-      
-      return Math.round((totalMinutesToday / dailyTargetMinutes) * 100);
-    }
+    // 7. Focus score
+    const calculateScore = () => {
+      const savedSettings = safeReadJSON("purrfocus_settings", {});
+      const dailyTargetMinutes = Number(savedSettings.dailyTarget) || 120;
+
+      if (totalMinutesToday <= 0) return 0;
+
+      return Math.min(
+        100,
+        Math.round((totalMinutesToday / dailyTargetMinutes) * 100)
+      );
+    };
 
     return {
       focusTimeToday,
@@ -90,20 +195,13 @@ function useStats(tasks = [], focusLogs = []) {
       currentStreak: calculateStreak(),
       weeklyDistribution,
       categoryDistribution,
-      completedTasks: tasks.filter(t => t.subtasks?.every(s => s.completed) && t.subtasks.length > 0).length,
-      
-      // KEDUANYA DIKIRIMKAN DI SINI:
+      completedTasks,
       totalXP: calculateTotalXP(),
-      focusScore: calculateScore() 
+      focusScore: calculateScore(),
     };
   }, [tasks, focusLogs]);
 
   return stats;
 }
-
-const getCatColor = (cat) => {
-  const colors = { Belajar: "bg-blue-500", Kerja: "bg-purple-500", Hobby: "bg-orange-500" };
-  return colors[cat] || "bg-slate-400";
-};
 
 export default useStats;

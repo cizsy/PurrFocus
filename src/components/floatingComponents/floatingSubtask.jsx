@@ -1,68 +1,158 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from "react";
+import { Check, Plus, Target, Trash2, X } from "lucide-react";
 
-function FloatingSubtask({ 
-  activeTask, 
-  onToggleSubtask, 
-  onAddSubtask, 
-  onEditSubtask, 
-  onDeleteSubtask, 
-  onClose 
+import { catAssets } from "../catAssets";
+import { purrThemes, DEFAULT_THEME } from "../purrThemes";
+
+const getSavedThemeName = () => {
+  try {
+    const savedSettings = JSON.parse(
+      localStorage.getItem("purrfocus_settings") || "{}"
+    );
+
+    return savedSettings.theme || DEFAULT_THEME;
+  } catch {
+    return DEFAULT_THEME;
+  }
+};
+
+function FloatingSubtask({
+  activeTask,
+  onToggleSubtask,
+  onAddSubtask,
+  onEditSubtask,
+  onDeleteSubtask,
+  onClose,
 }) {
   const [isAdding, setIsAdding] = useState(false);
   const [newText, setNewText] = useState("");
   const [editingId, setEditingId] = useState(null);
   const [editText, setEditText] = useState("");
 
-  // --- Fitur Drag & Drop ---
+  const [themeName, setThemeName] = useState(getSavedThemeName);
+  const theme = purrThemes[themeName] || purrThemes[DEFAULT_THEME];
+
+  const surface = theme.cardBg || theme.panelBg;
+  const softSurface = theme.cardSoft || "bg-white/40";
+  const strongSurface = theme.cardStrong || "bg-white/60";
+  const divider = theme.divider || "border-black/5";
+
+  const catColor = theme.isDark ? "white" : "black";
+  const catAngry = catAssets?.[catColor]?.angry || catAssets?.black?.angry;
+  const catSad = catAssets?.[catColor]?.sad || catAssets?.black?.sad;
+
   const [position, setPosition] = useState({ x: 0, y: 0 });
   const [isDragging, setIsDragging] = useState(false);
   const dragStartRef = useRef({ x: 0, y: 0 });
 
-  const handlePointerDown = (e) => {
-    // Hanya aktifkan drag jika klik pada area header, bukan pada input/button
-    if (e.target.closest('button') || e.target.closest('input')) return;
-    
+  useEffect(() => {
+    const handleThemeChange = (event) => {
+      setThemeName(event.detail || getSavedThemeName());
+    };
+
+    window.addEventListener("purrfocus-theme-change", handleThemeChange);
+
+    return () => {
+      window.removeEventListener("purrfocus-theme-change", handleThemeChange);
+    };
+  }, []);
+
+  const handlePointerDown = (event) => {
+    if (
+      event.target.closest("button") ||
+      event.target.closest("input") ||
+      event.target.closest("textarea")
+    ) {
+      return;
+    }
+
     setIsDragging(true);
+
     dragStartRef.current = {
-      x: e.clientX - position.x,
-      y: e.clientY - position.y
+      x: event.clientX - position.x,
+      y: event.clientY - position.y,
     };
   };
 
   useEffect(() => {
-    const handlePointerMove = (e) => {
+    const handlePointerMove = (event) => {
       if (!isDragging) return;
+
       setPosition({
-        x: e.clientX - dragStartRef.current.x,
-        y: e.clientY - dragStartRef.current.y
+        x: event.clientX - dragStartRef.current.x,
+        y: event.clientY - dragStartRef.current.y,
       });
     };
 
-    const handlePointerUp = () => setIsDragging(false);
+    const handlePointerUp = () => {
+      setIsDragging(false);
+    };
 
     if (isDragging) {
-      window.addEventListener('pointermove', handlePointerMove);
-      window.addEventListener('pointerup', handlePointerUp);
+      window.addEventListener("pointermove", handlePointerMove);
+      window.addEventListener("pointerup", handlePointerUp);
     }
 
     return () => {
-      window.removeEventListener('pointermove', handlePointerMove);
-      window.removeEventListener('pointerup', handlePointerUp);
+      window.removeEventListener("pointermove", handlePointerMove);
+      window.removeEventListener("pointerup", handlePointerUp);
     };
   }, [isDragging]);
 
+  const handleAdd = (event) => {
+    if (event.key === "Enter" && newText.trim()) {
+      onAddSubtask(activeTask.id, newText.trim());
+      setNewText("");
+      setIsAdding(false);
+    }
+
+    if (event.key === "Escape") {
+      setIsAdding(false);
+      setNewText("");
+    }
+  };
+
+  const handleEdit = (event, subId) => {
+    if (event.key === "Enter" && editText.trim()) {
+      onEditSubtask(activeTask.id, subId, editText.trim());
+      setEditingId(null);
+      setEditText("");
+    }
+
+    if (event.key === "Escape") {
+      setEditingId(null);
+      setEditText("");
+    }
+  };
+
   if (!activeTask) {
     return (
-      <div 
+      <div
         style={{ transform: `translate(${position.x}px, ${position.y}px)` }}
-        className="absolute z-50 w-64 bg-white/80 backdrop-blur-xl p-5 rounded-2xl shadow-2xl border border-white/60 flex flex-col items-center justify-center text-center cursor-grab active:cursor-grabbing"
+        className={`absolute z-50 flex w-72 flex-col items-center justify-center rounded-[2rem] border ${theme.border} ${surface} p-5 text-center shadow-2xl backdrop-blur-xl cursor-grab active:cursor-grabbing`}
         onPointerDown={handlePointerDown}
       >
-        <p className="text-3xl mb-2">🙀</p>
-        <p className="text-xs font-bold text-slate-600">Pilih target mangsa dulu di Dashboard!</p>
-        <button 
-          onClick={onClose} 
-          className="mt-4 px-4 py-1.5 bg-slate-100 hover:bg-red-50 text-slate-500 hover:text-red-500 rounded-lg text-[10px] font-black tracking-wider transition-colors"
+        {catAngry || catSad ? (
+          <img
+            src={catAngry || catSad}
+            alt=""
+            className="mb-3 h-24 w-24 object-contain"
+          />
+        ) : (
+          <p className="mb-3 text-4xl">🙀</p>
+        )}
+
+        <h3 className={`text-sm font-black ${theme.text}`}>
+          Belum ada target aktif
+        </h3>
+
+        <p className={`mt-2 text-xs font-bold leading-relaxed ${theme.muted}`}>
+          Pilih target dulu sebelum melihat subtask.
+        </p>
+
+        <button
+          onClick={onClose}
+          className={`mt-5 rounded-xl px-4 py-2 text-[10px] font-black uppercase tracking-wider transition-all active:scale-95 ${theme.button}`}
         >
           Tutup
         </button>
@@ -70,123 +160,155 @@ function FloatingSubtask({
     );
   }
 
-  const handleAdd = (e) => {
-    if (e.key === 'Enter' && newText.trim()) {
-      onAddSubtask(activeTask.id, newText);
-      setNewText("");
-      setIsAdding(false);
-    }
-    if (e.key === 'Escape') setIsAdding(false);
-  };
-
-  const handleEdit = (e, subId) => {
-    if (e.key === 'Enter' && editText.trim()) {
-      onEditSubtask(activeTask.id, subId, editText);
-      setEditingId(null);
-    }
-    if (e.key === 'Escape') setEditingId(null);
-  };
+  const subtasks = activeTask.subtasks || [];
 
   return (
-    <div 
+    <div
       className="absolute bottom-24 left-10 z-[60] pointer-events-none"
       style={{
         transform: `translate(${position.x}px, ${position.y}px)`,
-        transition: isDragging ? 'none' : 'transform 0.1s ease-out'
+        transition: isDragging ? "none" : "transform 0.1s ease-out",
       }}
     >
-      <div className="w-[300px] bg-white/90 backdrop-blur-2xl rounded-[2rem] shadow-2xl border border-white/40 p-5 pointer-events-auto animate-in slide-in-from-bottom-5 fade-in duration-300">
-        
-        {/* Header (Bisa di-Drag) */}
-        <div 
-          className="flex justify-between items-center mb-4 cursor-grab active:cursor-grabbing select-none"
+      <div
+        className={`w-[320px] rounded-[2rem] border ${theme.border} ${surface} p-5 shadow-2xl backdrop-blur-xl pointer-events-auto`}
+      >
+        {/* HEADER */}
+        <div
+          className={`mb-4 flex cursor-grab items-center justify-between border-b ${divider} pb-3 select-none active:cursor-grabbing`}
           onPointerDown={handlePointerDown}
         >
-          <div className="pointer-events-none">
-            <h4 className="text-[9px] font-black uppercase tracking-widest text-slate-500">Target Aktif</h4>
-            <h3 className="text-xs font-black text-slate-800 line-clamp-1 truncate w-44">
-              🎯 {activeTask.title}
-            </h3>
+          <div className="pointer-events-none min-w-0">
+            <p
+              className={`text-[9px] font-black uppercase tracking-[0.25em] ${theme.muted}`}
+            >
+              Target Aktif
+            </p>
+
+            <div className="mt-1 flex items-center gap-2">
+              <Target size={15} strokeWidth={2.7} className={theme.muted} />
+
+              <h3 className={`w-48 truncate text-sm font-black ${theme.text}`}>
+                {activeTask.title}
+              </h3>
+            </div>
           </div>
-          <button 
-            onClick={onClose} 
-            className="w-7 h-7 flex items-center justify-center rounded-full bg-red-50 text-red-400 hover:bg-red-500 hover:text-white transition-colors text-xs"
+
+          <button
+            onClick={onClose}
+            className="flex h-8 w-8 items-center justify-center rounded-full bg-red-500/10 text-red-500 transition-all hover:bg-red-500 hover:text-white active:scale-95"
             title="Tutup"
           >
-            ✕
+            <X size={15} strokeWidth={3} />
           </button>
         </div>
 
-        {/* Scrollable Area */}
-        <div className="max-h-[200px] overflow-y-auto custom-scrollbar pr-1 space-y-2">
-          {activeTask.subtasks.length === 0 && !isAdding && (
-            <p className="text-[10px] text-center text-slate-400 italic py-2">Belum ada sub-rencana. Tambahkan mangsa baru! 🐾</p>
+        {/* LIST */}
+        <div className="max-h-[220px] space-y-2 overflow-y-auto pr-1 custom-scrollbar">
+          {subtasks.length === 0 && !isAdding && (
+            <div
+              className={`rounded-[1.3rem] ${softSurface} px-4 py-5 text-center`}
+            >
+              {catSad && (
+                <img
+                  src={catSad}
+                  alt=""
+                  className="mx-auto mb-2 h-16 w-16 object-contain opacity-90"
+                />
+              )}
+
+              <p className={`text-xs font-bold leading-relaxed ${theme.muted}`}>
+                Belum ada subtask. Tambahkan langkah kecil biar target ini lebih
+                gampang dikerjakan.
+              </p>
+            </div>
           )}
 
-          {activeTask.subtasks.map((sub) => (
-            <div key={sub.id} className="group flex items-center gap-2 p-2.5 rounded-xl border bg-white/50 border-white/60 shadow-sm transition-all hover:bg-white hover:shadow-md">
-              <input 
-                type="checkbox" 
-                checked={sub.completed} 
-                onChange={() => onToggleSubtask(activeTask.id, sub.id)}
-                className="w-3.5 h-3.5 rounded-full border-2 border-[#4a7ec2] checked:bg-[#4a7ec2] cursor-pointer"
-              />
-              
-              {editingId === sub.id ? (
+          {subtasks.map((subtask) => (
+            <div
+              key={subtask.id}
+              className={`group flex items-center gap-2 rounded-xl border ${theme.border} ${strongSurface} p-2.5 shadow-sm transition-all hover:shadow-md`}
+            >
+              <button
+                type="button"
+                onClick={() => onToggleSubtask(activeTask.id, subtask.id)}
+                className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-md border transition-all ${
+                  subtask.completed
+                    ? "border-transparent bg-black/70 text-white"
+                    : "border-black/20 bg-white/20"
+                }`}
+                title={subtask.completed ? "Tandai belum selesai" : "Tandai selesai"}
+              >
+                {subtask.completed && <Check size={13} strokeWidth={3} />}
+              </button>
+
+              {editingId === subtask.id ? (
                 <input
                   autoFocus
-                  className="flex-1 text-[12px] font-bold text-slate-700 outline-none border-b border-[#4a7ec2] bg-transparent"
+                  className={`min-w-0 flex-1 border-b ${divider} bg-transparent text-[12px] font-bold outline-none ${theme.text}`}
                   value={editText}
-                  onChange={(e) => setEditText(e.target.value)}
-                  onKeyDown={(e) => handleEdit(e, sub.id)}
-                  onBlur={() => setEditingId(null)}
+                  onChange={(event) => setEditText(event.target.value)}
+                  onKeyDown={(event) => handleEdit(event, subtask.id)}
+                  onBlur={() => {
+                    setEditingId(null);
+                    setEditText("");
+                  }}
                 />
               ) : (
-                <span 
-                  className={`flex-1 text-[12px] font-bold cursor-pointer transition-colors ${sub.completed ? 'text-slate-400 line-through' : 'text-slate-700'}`}
+                <span
+                  className={`min-w-0 flex-1 cursor-text truncate text-[12px] font-bold transition-colors ${
+                    subtask.completed
+                      ? `line-through opacity-45 ${theme.muted}`
+                      : theme.text
+                  }`}
                   onClick={() => {
-                    setEditingId(sub.id);
-                    setEditText(sub.text);
+                    setEditingId(subtask.id);
+                    setEditText(subtask.text);
                   }}
                 >
-                  {sub.text}
+                  {subtask.text}
                 </span>
               )}
 
-              <button 
-                onClick={() => onDeleteSubtask(activeTask.id, sub.id)} 
-                className="opacity-0 group-hover:opacity-100 p-1.5 text-[10px] hover:bg-red-100 rounded-lg transition-colors"
-                title="Hapus"
+              <button
+                onClick={() => onDeleteSubtask(activeTask.id, subtask.id)}
+                className="opacity-0 transition-all group-hover:opacity-100 text-red-400 hover:text-red-600"
+                title="Hapus subtask"
               >
-                🗑️
+                <Trash2 size={14} strokeWidth={2.6} />
               </button>
             </div>
           ))}
 
-          {/* Inline Input untuk Tambah Baru */}
           {isAdding && (
-            <div className="flex items-center gap-2 p-2.5 rounded-xl border border-[#4a7ec2]/30 bg-[#4a7ec2]/10">
-              <div className="w-3.5 h-3.5 rounded-full border-2 border-slate-300" />
+            <div
+              className={`flex items-center gap-2 rounded-xl border ${theme.border} ${softSurface} p-2.5`}
+            >
+              <div className="h-5 w-5 shrink-0 rounded-md border border-black/20 bg-white/20" />
+
               <input
                 autoFocus
-                placeholder="Nama mangsa..."
-                className="flex-1 bg-transparent text-[12px] font-bold text-slate-700 outline-none placeholder:text-slate-400"
+                placeholder="Tulis langkah kecil..."
+                className={`min-w-0 flex-1 bg-transparent text-[12px] font-bold outline-none placeholder:opacity-50 ${theme.text}`}
                 value={newText}
-                onChange={(e) => setNewText(e.target.value)}
+                onChange={(event) => setNewText(event.target.value)}
                 onKeyDown={handleAdd}
-                onBlur={() => setIsAdding(false)}
+                onBlur={() => {
+                  setIsAdding(false);
+                  setNewText("");
+                }}
               />
             </div>
           )}
         </div>
 
-        {/* Tombol Tambah */}
         {!isAdding && (
-          <button 
+          <button
             onClick={() => setIsAdding(true)}
-            className="mt-4 w-full py-2.5 rounded-xl border-2 border-dashed border-slate-300 text-slate-500 text-[10px] font-black uppercase tracking-wider hover:border-[#4a7ec2] hover:text-[#4a7ec2] hover:bg-[#4a7ec2]/10 transition-all active:scale-95"
+            className={`mt-4 flex w-full items-center justify-center gap-2 rounded-xl border-2 border-dashed ${theme.border} py-2.5 text-[10px] font-black uppercase tracking-wider transition-all active:scale-95 ${theme.muted} hover:opacity-80`}
           >
-            + Tambah Sub-rencana
+            <Plus size={15} strokeWidth={3} />
+            Tambah Subtask
           </button>
         )}
       </div>

@@ -1,57 +1,119 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from "react";
+import { X, NotebookPen } from "lucide-react";
+
+import { catAssets } from "../catAssets";
+import { purrThemes, DEFAULT_THEME } from "../purrThemes";
+
+const getSavedThemeName = () => {
+  try {
+    const savedSettings = JSON.parse(
+      localStorage.getItem("purrfocus_settings") || "{}"
+    );
+
+    return savedSettings.theme || DEFAULT_THEME;
+  } catch {
+    return DEFAULT_THEME;
+  }
+};
 
 function FloatingNotes({ activeTask, onUpdateNotes, onClose }) {
-  // --- Fitur Drag & Drop ---
   const [position, setPosition] = useState({ x: 0, y: 0 });
   const [isDragging, setIsDragging] = useState(false);
+  const [themeName, setThemeName] = useState(getSavedThemeName);
+
   const dragStartRef = useRef({ x: 0, y: 0 });
 
-  const handlePointerDown = (e) => {
-    // 🚨 LUBANG UX DITAMBAL: Pengecualian button DAN textarea agar nggak keseret pas ngetik!
-    if (e.target.closest('button') || e.target.closest('textarea')) return;
-    
+  const theme = purrThemes[themeName] || purrThemes[DEFAULT_THEME];
+  const surface = theme.cardBg || theme.panelBg;
+  const softSurface = theme.cardSoft || "bg-white/40";
+  const divider = theme.divider || "border-black/5";
+
+  const catColor = theme.isDark ? "white" : "black";
+  const catSad = catAssets?.[catColor]?.sad || catAssets?.black?.sad;
+  const catAngry = catAssets?.[catColor]?.angry || catAssets?.black?.angry;
+
+  useEffect(() => {
+    const handleThemeChange = (event) => {
+      setThemeName(event.detail || getSavedThemeName());
+    };
+
+    window.addEventListener("purrfocus-theme-change", handleThemeChange);
+
+    return () => {
+      window.removeEventListener("purrfocus-theme-change", handleThemeChange);
+    };
+  }, []);
+
+  const handlePointerDown = (event) => {
+    if (
+      event.target.closest("button") ||
+      event.target.closest("textarea") ||
+      event.target.closest("input")
+    ) {
+      return;
+    }
+
     setIsDragging(true);
+
     dragStartRef.current = {
-      x: e.clientX - position.x,
-      y: e.clientY - position.y
+      x: event.clientX - position.x,
+      y: event.clientY - position.y,
     };
   };
 
   useEffect(() => {
-    const handlePointerMove = (e) => {
+    const handlePointerMove = (event) => {
       if (!isDragging) return;
+
       setPosition({
-        x: e.clientX - dragStartRef.current.x,
-        y: e.clientY - dragStartRef.current.y
+        x: event.clientX - dragStartRef.current.x,
+        y: event.clientY - dragStartRef.current.y,
       });
     };
 
-    const handlePointerUp = () => setIsDragging(false);
+    const handlePointerUp = () => {
+      setIsDragging(false);
+    };
 
     if (isDragging) {
-      window.addEventListener('pointermove', handlePointerMove);
-      window.addEventListener('pointerup', handlePointerUp);
+      window.addEventListener("pointermove", handlePointerMove);
+      window.addEventListener("pointerup", handlePointerUp);
     }
 
     return () => {
-      window.removeEventListener('pointermove', handlePointerMove);
-      window.removeEventListener('pointerup', handlePointerUp);
+      window.removeEventListener("pointermove", handlePointerMove);
+      window.removeEventListener("pointerup", handlePointerUp);
     };
   }, [isDragging]);
 
-  // 🚨 LUBANG CRASH DITAMBAL: Pengaman kalau user nggak pilih tugas
   if (!activeTask) {
     return (
-      <div 
+      <div
         style={{ transform: `translate(${position.x}px, ${position.y}px)` }}
-        className="absolute z-50 w-64 bg-white/80 backdrop-blur-xl p-5 rounded-2xl shadow-2xl border border-white/60 flex flex-col items-center justify-center text-center cursor-grab active:cursor-grabbing"
         onPointerDown={handlePointerDown}
+        className={`absolute z-50 w-72 rounded-[2rem] border ${theme.border} ${surface} p-5 text-center shadow-2xl backdrop-blur-xl cursor-grab active:cursor-grabbing`}
       >
-        <p className="text-3xl mb-2">🙀</p>
-        <p className="text-xs font-bold text-slate-600">Pilih target mangsa dulu di Dashboard!</p>
-        <button 
-          onClick={onClose} 
-          className="mt-4 px-4 py-1.5 bg-slate-100 hover:bg-red-50 text-slate-500 hover:text-red-500 rounded-lg text-[10px] font-black tracking-wider transition-colors"
+        {catAngry || catSad ? (
+          <img
+            src={catAngry || catSad}
+            alt=""
+            className="mx-auto mb-3 h-24 w-24 object-contain"
+          />
+        ) : (
+          <p className="mb-3 text-4xl">🙀</p>
+        )}
+
+        <h3 className={`text-sm font-black ${theme.text}`}>
+          Belum ada target aktif
+        </h3>
+
+        <p className={`mt-2 text-xs font-bold leading-relaxed ${theme.muted}`}>
+          Pilih target dulu sebelum menulis catatan fokus.
+        </p>
+
+        <button
+          onClick={onClose}
+          className={`mt-5 rounded-xl px-4 py-2 text-[10px] font-black uppercase tracking-wider transition-all active:scale-95 ${theme.button}`}
         >
           Tutup
         </button>
@@ -60,37 +122,48 @@ function FloatingNotes({ activeTask, onUpdateNotes, onClose }) {
   }
 
   return (
-    <div 
+    <div
       style={{ transform: `translate(${position.x}px, ${position.y}px)` }}
-      className="absolute z-50 w-72 bg-white/80 backdrop-blur-xl p-4 rounded-2xl shadow-2xl border border-white/60 flex flex-col gap-3"
+      className={`absolute z-50 flex w-80 flex-col gap-3 rounded-[2rem] border ${theme.border} ${surface} p-4 shadow-2xl backdrop-blur-xl`}
     >
-      {/* Header Drag Area */}
-      <div 
-        className="flex justify-between items-start cursor-grab active:cursor-grabbing"
+      {/* DRAG HEADER */}
+      <div
+        className={`flex cursor-grab items-start justify-between border-b ${divider} pb-3 active:cursor-grabbing`}
         onPointerDown={handlePointerDown}
       >
-        <div className="pointer-events-none">
-          <h4 className="text-[9px] font-black uppercase tracking-widest text-slate-500">Catatan Mangsa</h4>
-          <h3 className="text-xs font-black text-slate-800 line-clamp-1 truncate w-44">
-            📝 {activeTask.title}
-          </h3>
+        <div className="pointer-events-none min-w-0">
+          <p className={`text-[9px] font-black uppercase tracking-[0.25em] ${theme.muted}`}>
+            Catatan Fokus
+          </p>
+
+          <div className="mt-1 flex items-center gap-2">
+            <NotebookPen size={15} strokeWidth={2.7} className={theme.muted} />
+
+            <h3 className={`w-52 truncate text-sm font-black ${theme.text}`}>
+              {activeTask.title}
+            </h3>
+          </div>
         </div>
-        <button 
+
+        <button
           onClick={onClose}
-          className="w-7 h-7 flex items-center justify-center rounded-full bg-red-50 text-red-400 hover:bg-red-500 hover:text-white transition-colors text-xs"
+          className="flex h-8 w-8 items-center justify-center rounded-full bg-red-500/10 text-red-500 transition-all hover:bg-red-500 hover:text-white active:scale-95"
           title="Tutup"
         >
-          ✕
+          <X size={15} strokeWidth={3} />
         </button>
       </div>
 
-      {/* Text Area */}
       <textarea
         value={activeTask.notes || ""}
-        onChange={(e) => onUpdateNotes(activeTask.id, e.target.value)}
-        placeholder="Tulis ide, kendala, atau hal penting dari mangsa ini..."
-        className="w-full h-[180px] p-4 text-[13px] font-medium text-slate-700 bg-white/50 border border-white/60 rounded-xl shadow-inner focus:outline-none focus:ring-2 focus:ring-[#4a7ec2]/50 focus:bg-white transition-all resize-none custom-scrollbar placeholder:text-slate-400"
+        onChange={(event) => onUpdateNotes(activeTask.id, event.target.value)}
+        placeholder="Tulis ide, kendala, atau hal penting dari sesi ini..."
+        className={`h-[190px] w-full resize-none rounded-[1.3rem] border ${theme.border} ${softSurface} p-4 text-[13px] font-medium leading-relaxed outline-none transition-all focus:ring-2 ${theme.ring || "ring-black/10"} custom-scrollbar placeholder:opacity-50 ${theme.text}`}
       />
+
+      <p className={`text-[10px] font-bold leading-relaxed ${theme.muted}`}>
+        Catatan tersimpan otomatis saat kamu mengetik.
+      </p>
     </div>
   );
 }

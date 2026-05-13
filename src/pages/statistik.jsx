@@ -1,111 +1,309 @@
-import React from 'react';
-import useStats from '../hooks/useStats';
+import React, { useEffect, useState } from "react";
+import {
+  Timer,
+  CheckCircle2,
+  BarChart3,
+  Flame,
+  Trophy,
+  Footprints,
+  Sparkles,
+  Crown,
+  Target,
+} from "lucide-react";
 
-function Statistik({ tasks, focusLogs }) {
-  const { 
-    focusTimeToday, 
-    completedTasks, 
-    totalXP, 
+import useStats from "../hooks/useStats";
+import { catAssets } from "../components/catAssets";
+import { purrThemes, DEFAULT_THEME } from "../components/purrThemes";
+
+const getSavedThemeName = () => {
+  try {
+    const savedSettings = JSON.parse(
+      localStorage.getItem("purrfocus_settings") || "{}"
+    );
+
+    return savedSettings.theme || DEFAULT_THEME;
+  } catch {
+    return DEFAULT_THEME;
+  }
+};
+
+function Statistik({ tasks = [], focusLogs = [] }) {
+  const [themeName, setThemeName] = useState(getSavedThemeName);
+  const theme = purrThemes[themeName] || purrThemes[DEFAULT_THEME];
+
+  const {
+    focusTimeToday,
+    completedTasks,
+    totalXP,
     focusScore,
-    currentStreak, 
-    weeklyDistribution, 
+    currentStreak,
+    weeklyDistribution,
     categoryDistribution,
   } = useStats(tasks, focusLogs);
 
+  useEffect(() => {
+    const handleThemeChange = (event) => {
+      setThemeName(event.detail || getSavedThemeName());
+    };
+
+    window.addEventListener("purrfocus-theme-change", handleThemeChange);
+
+    return () => {
+      window.removeEventListener("purrfocus-theme-change", handleThemeChange);
+    };
+  }, []);
+
   const days = ["Sen", "Sel", "Rab", "Kam", "Jum", "Sab", "Min"];
 
+  const catColor = theme.isDark ? "white" : "black";
+  const catSad = catAssets?.[catColor]?.sad || catAssets?.black?.sad;
+
+  const recentLogs = [...focusLogs].reverse().slice(0, 5);
+  const highestWeeklyValue = Math.max(...weeklyDistribution, 1);
+
   return (
-    <div className="p-4 space-y-4 overflow-y-auto custom-scrollbar flex-1 bg-white">
-      
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-        
-        <div className="bg-slate-900 p-4 rounded-[1.5rem] text-white shadow-lg shadow-slate-200 flex flex-col justify-center">
-          <p className="text-[9px] font-black uppercase tracking-widest opacity-50 mb-1">Total Fokus</p>
-          <h2 className="text-xl font-black">{focusTimeToday}</h2>
-        </div>
-        
-        <div className="bg-blue-50 p-4 rounded-[1.5rem] border border-blue-100 flex flex-col justify-center">
-          <p className="text-[9px] font-black uppercase tracking-widest text-blue-400 mb-1">Target Beres</p>
-          <h2 className="text-xl font-black text-blue-900">{completedTasks} <span className="text-[10px] font-bold opacity-40 text-blue-400">Tasks</span></h2>
-        </div>
+    <div
+      className={`min-h-full flex-1 overflow-y-auto custom-scrollbar p-5 md:p-6 space-y-5 transition-colors duration-300 ${theme.mainBg} ${theme.text}`}
+    >
+      {/* HERO */}
+      <section
+        className={`relative overflow-hidden rounded-[2rem] border ${theme.border} ${theme.panelBg} p-6 md:p-8 shadow-sm backdrop-blur-md`}
+      >
+        <div className="relative z-10">
+          <p
+            className={`mb-2 text-[10px] font-black uppercase tracking-[0.25em] ${theme.muted}`}
+          >
+            Statistik Fokus
+          </p>
 
-        <div className="bg-purple-50 p-4 rounded-[1.5rem] border border-purple-100 flex flex-col justify-center">
-          <p className="text-[9px] font-black uppercase tracking-widest text-purple-400 mb-1">Skor Harian</p>
-          <h2 className="text-xl font-black text-purple-900">{focusScore}%</h2>
-        </div>
+          <h1 className={`text-3xl font-black tracking-tight ${theme.text}`}>
+            Lihat ritme fokusmu.
+          </h1>
 
-        <div className="bg-green-50 p-4 rounded-[1.5rem] border border-green-100 flex flex-col justify-center">
-          <p className="text-[9px] font-black uppercase tracking-widest text-green-500 mb-1">Streak 🔥</p>
-          <h2 className="text-xl font-black text-green-900">{currentStreak} <span className="text-[10px] font-bold opacity-40 text-green-500">Hari</span></h2>
+          <p
+            className={`mt-2 max-w-xl text-sm font-medium leading-relaxed ${theme.muted}`}
+          >
+            Pantau durasi fokus, target selesai, streak, dan jejak sesi yang
+            sudah kamu kumpulkan.
+          </p>
         </div>
+      </section>
 
-        <div className="bg-orange-50 p-4 rounded-[1.5rem] border border-orange-100 flex flex-col justify-center">
-          <p className="text-[9px] font-black uppercase tracking-widest text-orange-400 mb-1">Tangkapan 🐟</p>
-          <h2 className="text-xl font-black text-orange-900">{totalXP} <span className="text-[10px] font-bold opacity-40 text-orange-400">XP</span></h2>
-        </div>
-      </div>
-      
-      <div className="grid grid-cols-12 gap-4">
-        <div className="col-span-12 lg:col-span-7 bg-slate-50 p-5 rounded-[2rem] border border-slate-100">
-          <h3 className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-6">Aktivitas Mingguan 📊</h3>
-          <div className="flex items-end justify-between h-32 px-2 gap-2">
-            {weeklyDistribution.map((val, i) => {
-              const height = Math.min((val / 120) * 100, 100); 
+      {/* STAT CARDS */}
+      <section className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-5">
+        <StatCard
+          theme={theme}
+          icon={Timer}
+          label="Total Fokus"
+          value={focusTimeToday}
+        />
+
+        <StatCard
+          theme={theme}
+          icon={CheckCircle2}
+          label="Target Beres"
+          value={completedTasks}
+          suffix="task"
+        />
+
+        <StatCard
+          theme={theme}
+          icon={BarChart3}
+          label="Skor Harian"
+          value={`${focusScore}%`}
+        />
+
+        <StatCard
+          theme={theme}
+          icon={Flame}
+          label="Streak"
+          value={currentStreak}
+          suffix="hari"
+        />
+
+        <StatCard
+          theme={theme}
+          icon={Trophy}
+          label="Poin Fokus"
+          value={totalXP}
+          suffix="XP"
+        />
+      </section>
+
+      <section className="grid grid-cols-12 gap-5">
+        {/* AKTIVITAS MINGGUAN */}
+        <div
+          className={`col-span-12 rounded-[2rem] border ${theme.border} ${theme.panelBg} p-5 md:p-6 shadow-sm backdrop-blur-md lg:col-span-7`}
+        >
+          <div className="mb-7 flex items-center justify-between">
+            <div>
+              <p
+                className={`mb-1 text-[10px] font-black uppercase tracking-[0.22em] ${theme.muted}`}
+              >
+                Aktivitas Mingguan
+              </p>
+              <h2 className={`text-lg font-black ${theme.text}`}>
+                Pola fokus 7 hari terakhir
+              </h2>
+            </div>
+
+            <span className="rounded-full bg-white/40 px-3 py-1 text-[10px] font-black">
+              menit
+            </span>
+          </div>
+
+          <div className="flex h-40 items-end justify-between gap-3 px-1">
+            {weeklyDistribution.map((value, index) => {
+              const height = Math.min(
+                (value / highestWeeklyValue) * 100,
+                100
+              );
+
               return (
-                <div key={i} className="flex flex-col items-center gap-2 flex-1">
-                  <div 
-                    className="w-full max-w-[20px] bg-blue-500 rounded-t-md transition-all duration-1000 hover:bg-slate-800 relative group cursor-pointer"
-                    style={{ height: `${height}%`, minHeight: '4px' }}
-                  >
-                    <span className="absolute -top-7 left-1/2 -translate-x-1/2 bg-slate-800 text-white text-[8px] py-1 px-1.5 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-10">
-                      {val}m
+                <div
+                  key={index}
+                  className="group flex flex-1 flex-col items-center gap-3"
+                >
+                  <div className="relative flex h-32 w-full max-w-[28px] items-end justify-center overflow-hidden rounded-full bg-black/10">
+                    <div
+                      className="w-full rounded-full bg-current opacity-70 transition-all duration-700 group-hover:opacity-100"
+                      style={{
+                        height: `${height}%`,
+                        minHeight: value > 0 ? "8px" : "4px",
+                      }}
+                    />
+
+                    <span className="absolute -top-8 left-1/2 z-10 -translate-x-1/2 rounded-full bg-black/80 px-2 py-1 text-[9px] font-bold text-white opacity-0 shadow-lg transition-opacity group-hover:opacity-100">
+                      {value}m
                     </span>
                   </div>
-                  <span className="text-[8px] font-bold text-slate-400 uppercase">{days[i]}</span>
+
+                  <span
+                    className={`text-[10px] font-black uppercase tracking-widest ${theme.muted}`}
+                  >
+                    {days[index]}
+                  </span>
                 </div>
               );
             })}
           </div>
+
+          {weeklyDistribution.every((value) => value === 0) && (
+            <p className={`mt-5 text-center text-xs font-bold ${theme.muted}`}>
+              Belum ada sesi fokus minggu ini.
+            </p>
+          )}
         </div>
 
-        <div className="col-span-12 lg:col-span-5 bg-white border border-slate-100 p-5 rounded-[2rem] shadow-sm">
-          <h3 className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-5">Kategori Utama 🐾</h3>
-          <div className="space-y-4">
-            {categoryDistribution.map((cat, i) => (
-              <div key={i}>
-                <div className="flex justify-between text-[10px] font-black uppercase mb-1">
-                  <span className="text-slate-600">{cat.label}</span>
-                  <span className="text-slate-400">{cat.value}%</span>
-                </div>
-                <div className="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden">
-                  <div 
-                    className={`${cat.color} h-full transition-all duration-1000 ease-out`} 
-                    style={{ width: `${cat.value}%` }}
-                  ></div>
-                </div>
+        {/* KATEGORI */}
+        <div
+          className={`col-span-12 rounded-[2rem] border ${theme.border} ${theme.panelBg} p-5 md:p-6 shadow-sm backdrop-blur-md lg:col-span-5`}
+        >
+          <div className="mb-6">
+            <p
+              className={`mb-1 text-[10px] font-black uppercase tracking-[0.22em] ${theme.muted}`}
+            >
+              Kategori Utama
+            </p>
+            <h2 className={`text-lg font-black ${theme.text}`}>
+              Arah fokusmu
+            </h2>
+          </div>
+
+          <div className="space-y-5">
+            {categoryDistribution.length === 0 ? (
+              <div className="flex flex-col items-center justify-center rounded-[1.4rem] bg-white/35 p-5 text-center">
+                {catSad && (
+                  <img
+                    src={catSad}
+                    alt=""
+                    className="mb-3 h-20 w-20 object-contain opacity-90"
+                  />
+                )}
+
+                <p className={`text-xs font-bold leading-relaxed ${theme.muted}`}>
+                  Belum ada kategori yang cukup aktif. Isi target dulu, baru
+                  grafiknya bisa pamer.
+                </p>
               </div>
-            ))}
+            ) : (
+              categoryDistribution.map((category, index) => (
+                <div key={index}>
+                  <div className="mb-2 flex justify-between text-[11px] font-black uppercase tracking-wider">
+                    <span className={theme.text}>{category.label}</span>
+                    <span className={theme.muted}>{category.value}%</span>
+                  </div>
+
+                  <div className="h-2 w-full overflow-hidden rounded-full bg-black/10">
+                    <div
+                      className="h-full rounded-full bg-current opacity-70 transition-all duration-700 ease-out"
+                      style={{ width: `${category.value}%` }}
+                    />
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+
+          <div className="mt-6 rounded-[1.5rem] bg-white/35 p-4">
+            <p className={`text-xs font-bold leading-relaxed ${theme.muted}`}>
+              Kategori paling tinggi menunjukkan jenis aktivitas yang paling
+              sering kamu sentuh.
+            </p>
           </div>
         </div>
 
-        <div className="col-span-12 bg-slate-50 p-6 rounded-[2rem] border border-slate-100">
-          <h3 className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-6">Jejak Buruan Terakhir 📜</h3>
+        {/* JEJAK TERAKHIR */}
+        <div
+          className={`col-span-12 rounded-[2rem] border ${theme.border} ${theme.panelBg} p-5 md:p-6 shadow-sm backdrop-blur-md`}
+        >
+          <div className="mb-6 flex items-center justify-between">
+            <div>
+              <p
+                className={`mb-1 text-[10px] font-black uppercase tracking-[0.22em] ${theme.muted}`}
+              >
+                Jejak Terakhir
+              </p>
+              <h2 className={`text-lg font-black ${theme.text}`}>
+                Sesi fokus terbaru
+              </h2>
+            </div>
+
+            <span className="hidden rounded-full bg-white/40 px-3 py-1 text-[10px] font-black md:inline">
+              {focusLogs.length} sesi
+            </span>
+          </div>
+
           <div className="grid gap-3">
-            {focusLogs.length === 0 ? (
-              <div className="text-center py-10 opacity-30 font-bold italic">Belum ada jejak hari ini...</div>
+            {recentLogs.length === 0 ? (
+              <EmptyLogs theme={theme} cat={catSad} />
             ) : (
-              [...focusLogs].reverse().slice(0, 5).map((log, i) => (
-                <div key={i} className="flex justify-between items-center bg-white p-4 rounded-2xl shadow-sm border border-slate-100">
+              recentLogs.map((log, index) => (
+                <div
+                  key={index}
+                  className="flex items-center justify-between rounded-[1.4rem] border border-black/5 bg-white/40 p-4 transition-all hover:-translate-y-0.5 hover:bg-white/55 hover:shadow-md"
+                >
                   <div className="flex items-center gap-4">
-                    <div className="text-xl">🐱</div>
+                    <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-white/40">
+                      <Footprints size={19} strokeWidth={2.6} />
+                    </div>
+
                     <div>
-                      <p className="text-xs font-black text-slate-700">Sesi Fokus Berhasil</p>
-                      <p className="text-[9px] text-slate-400 font-bold uppercase">
-                        {new Date(log.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      <p className={`text-sm font-black ${theme.text}`}>
+                        Sesi fokus selesai
+                      </p>
+                      <p
+                        className={`mt-0.5 text-[10px] font-bold uppercase tracking-wider ${theme.muted}`}
+                      >
+                        {new Date(log.date).toLocaleTimeString("id-ID", {
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })}
                       </p>
                     </div>
                   </div>
-                  <div className="text-blue-600 font-black text-xs bg-blue-50 px-3 py-1 rounded-full">
+
+                  <div className="rounded-full bg-white/45 px-3 py-1 text-xs font-black">
                     +{log.duration}m
                   </div>
                 </div>
@@ -113,31 +311,135 @@ function Statistik({ tasks, focusLogs }) {
             )}
           </div>
         </div>
-      </div>
+      </section>
 
-      <div className="bg-slate-50 p-5 rounded-[2rem] border border-slate-100">
-        <h3 className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-5">Pencapaian Hunter 🏆</h3>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          <Badge icon="🌅" title="Kucing Pemula" desc="Berhasil masuk app" unlocked={true} />
-          
-          <Badge icon="🔥" title="On Fire" desc="Streak 3 hari" unlocked={currentStreak >= 3} />
-          
-          <Badge icon="🎯" title="Sniper" desc="5 task beres" unlocked={completedTasks >= 5} />
-          
-          <Badge icon="👑" title="Legend" desc="Terkumpul 1000 XP" unlocked={totalXP >= 1000} />
+      {/* ACHIEVEMENTS */}
+      <section
+        className={`rounded-[2rem] border ${theme.border} ${theme.panelBg} p-5 md:p-6 shadow-sm backdrop-blur-md`}
+      >
+        <div className="mb-6">
+          <p
+            className={`mb-1 text-[10px] font-black uppercase tracking-[0.22em] ${theme.muted}`}
+          >
+            Pencapaian
+          </p>
+          <h2 className={`text-lg font-black ${theme.text}`}>
+            Tanda kecil dari progresmu
+          </h2>
         </div>
-      </div>
 
+        <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+          <Badge
+            theme={theme}
+            icon={Sparkles}
+            title="Mulai Tenang"
+            desc="Berhasil masuk app"
+            unlocked={true}
+          />
+
+          <Badge
+            theme={theme}
+            icon={Flame}
+            title="Ritme Terjaga"
+            desc="Streak 3 hari"
+            unlocked={currentStreak >= 3}
+          />
+
+          <Badge
+            theme={theme}
+            icon={Target}
+            title="Tuntas"
+            desc="5 target beres"
+            unlocked={completedTasks >= 5}
+          />
+
+          <Badge
+            theme={theme}
+            icon={Crown}
+            title="Konsisten"
+            desc="1000 XP terkumpul"
+            unlocked={totalXP >= 1000}
+          />
+        </div>
+      </section>
     </div>
   );
 }
 
-function Badge({ icon, title, desc, unlocked }) {
+function StatCard({ theme, icon: Icon, label, value, suffix }) {
   return (
-    <div className={`p-3 rounded-2xl border flex flex-col items-center text-center transition-all ${unlocked ? 'bg-white border-slate-100 shadow-sm hover:scale-105' : 'bg-slate-200/50 border-transparent opacity-30 grayscale'}`}>
-      <span className="text-2xl mb-1">{icon}</span>
-      <h4 className="text-[9px] font-black uppercase text-slate-700">{title}</h4>
-      <p className="text-[8px] font-bold text-slate-400 leading-tight mt-0.5">{desc}</p>
+    <div
+      className={`rounded-[1.5rem] border ${theme.border} ${theme.panelBg} p-4 shadow-sm backdrop-blur-md transition-all hover:-translate-y-0.5 hover:shadow-md`}
+    >
+      <div className="mb-4 flex items-center justify-between">
+        <span className="flex h-9 w-9 items-center justify-center rounded-2xl bg-white/40">
+          <Icon size={18} strokeWidth={2.6} />
+        </span>
+
+        <span className="h-2 w-2 rounded-full bg-current opacity-40" />
+      </div>
+
+      <p className={`text-xl font-black leading-none ${theme.text}`}>
+        {value}
+        {suffix && (
+          <span className={`ml-1 text-[10px] font-bold ${theme.muted}`}>
+            {suffix}
+          </span>
+        )}
+      </p>
+
+      <p
+        className={`mt-2 text-[9px] font-black uppercase tracking-[0.2em] ${theme.muted}`}
+      >
+        {label}
+      </p>
+    </div>
+  );
+}
+
+function EmptyLogs({ theme, cat }) {
+  return (
+    <div className="flex flex-col items-center justify-center rounded-[1.7rem] border border-dashed border-black/10 bg-white/35 px-6 py-12 text-center">
+      {cat && (
+        <img
+          src={cat}
+          alt=""
+          className="mb-4 h-24 w-24 object-contain opacity-90"
+        />
+      )}
+
+      <h3 className={`text-sm font-black ${theme.text}`}>
+        Belum ada jejak fokus
+      </h3>
+
+      <p className={`mt-2 max-w-xs text-xs font-bold leading-relaxed ${theme.muted}`}>
+        Mulai satu sesi dulu. Statistik nggak bisa kerja kalau kamu cuma
+        menatap dashboard.
+      </p>
+    </div>
+  );
+}
+
+function Badge({ theme, icon: Icon, title, desc, unlocked }) {
+  return (
+    <div
+      className={`rounded-2xl border p-4 text-center transition-all ${
+        unlocked
+          ? "border-black/5 bg-white/40 shadow-sm hover:-translate-y-0.5 hover:shadow-md"
+          : "border-transparent bg-black/10 opacity-35 grayscale"
+      }`}
+    >
+      <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-white/40">
+        <Icon size={22} strokeWidth={2.5} />
+      </div>
+
+      <h3 className={`text-[10px] font-black uppercase tracking-wider ${theme.text}`}>
+        {title}
+      </h3>
+
+      <p className={`mt-1 text-[9px] font-bold leading-tight ${theme.muted}`}>
+        {desc}
+      </p>
     </div>
   );
 }
