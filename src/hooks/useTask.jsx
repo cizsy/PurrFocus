@@ -12,18 +12,16 @@ function useTasks() {
   });
 
   useEffect(() => {
-    const today = new Date().toDateString();
     const expiredTasks = tasks.filter(t => {
-      const taskDate = new Date(t.createdAt).toDateString();
-      return taskDate !== today;
+      return !isSameLocalDate(t.createdAt);
     });
 
     if (expiredTasks.length > 0) {
       const history = JSON.parse(localStorage.getItem("purrfocus_history") || "[]");
       const newHistory = [...history, ...expiredTasks];
       localStorage.setItem("purrfocus_history", JSON.stringify(newHistory));
-      
-      const activeTasks = tasks.filter(t => new Date(t.createdAt).toDateString() === today);
+
+      const activeTasks = tasks.filter(t => isSameLocalDate(t.createdAt));
       setTasks(activeTasks);
     }
   }, []);
@@ -35,6 +33,18 @@ function useTasks() {
   useEffect(() => {
   localStorage.setItem("purrfocus_logs", JSON.stringify(focusLogs));
   }, [focusLogs]);
+
+  const getLocalDateString = (date = new Date()) => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+
+  return `${year}-${month}-${day}`;
+  };
+
+  const isSameLocalDate = (dateA, dateB = new Date()) => {
+    return getLocalDateString(new Date(dateA)) === getLocalDateString(dateB);
+  };
 
   const addFocusLog = (taskId, duration) => {
     const newLog = {
@@ -56,7 +66,7 @@ function useTasks() {
       status: "hunting",
       subtasks: [],
       createdAt: new Date().toISOString(),
-      deadline: deadline || new Date().toISOString().split('T')[0], 
+      deadline: deadline || getLocalDateString(),
       category: category,
       notes: ""
     };
