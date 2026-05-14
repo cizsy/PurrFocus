@@ -136,7 +136,7 @@ function Dashboard({
             </div>
 
             {heroCat && (
-              <div className="relative mx-auto flex h-36 w-36 items-center justify-center rounded-[2rem] bg-white/35 md:h-44 md:w-44">
+              <div className="relative mx-auto flex h-32 w-32 items-center justify-center bg-white/35 md:h-44 md:w-44">
                 <img
                   src={heroCat}
                   alt="Kucing PurrFocus"

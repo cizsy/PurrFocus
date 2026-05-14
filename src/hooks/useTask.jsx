@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
 
 function useTasks() {
+
+  // fungsi untuk mengambil data
   const [tasks, setTasks] = useState(() => {
     const saved = localStorage.getItem("purrfocus_tasks");
     return saved ? JSON.parse(saved) : [];
@@ -11,6 +13,7 @@ function useTasks() {
   return saved ? JSON.parse(saved) : [];
   });
 
+  // fungsi untuk membandung tasks apakah sudah melewati hari atau masih aktif
   useEffect(() => {
     const expiredTasks = tasks.filter(t => {
       return !isSameLocalDate(t.createdAt);
@@ -26,6 +29,7 @@ function useTasks() {
     }
   }, []);
 
+  // menyimpan perubahan data ke localStorage
   useEffect(() => {
     localStorage.setItem("purrfocus_tasks", JSON.stringify(tasks));
   }, [tasks]);

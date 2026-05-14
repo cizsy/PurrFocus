@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import toast, { Toaster } from "react-hot-toast";
-import ThemeCard from "../components/ThemeCards";
+import ThemeCard from "../components/themeCards";
 import { themeOptions, purrThemes, DEFAULT_THEME } from "../components/purrThemes";
 
 function Pengaturan() {

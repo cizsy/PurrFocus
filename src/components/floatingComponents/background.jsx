@@ -3,6 +3,14 @@ import { Image, RotateCcw, X } from "lucide-react";
 
 import ghibli1 from "../../assets/bg/totoro1.gif";
 import garden1 from "../../assets/bg/garden1.jpg";
+import cat1 from "../../assets/bg/cat1.jpg";
+import cat2 from "../../assets/bg/cat2.gif";
+import dark2 from "../../assets/bg/dark2.gif";
+import dark3 from "../../assets/bg/dark3.gif";
+import desk from "../../assets/bg/desk.gif";
+// import envi1 from "../../assets/bg/envi1.jpeg";
+// import envi2 from "../../assets/bg/envi2.jpeg";
+// import pond1 from "../../assets/bg/pond1.jpeg";
 
 import { purrThemes, DEFAULT_THEME } from "../purrThemes";
 
@@ -45,49 +53,72 @@ function FloatingBackground({ onSelect, onClose }) {
       type: "reset",
       value: null,
       preview: "theme",
-      desc: "Kembali ke warna tema.",
     },
     {
       name: "Classic Blue",
       type: "class",
       value: "bg-gradient-to-br from-[#4a7ec2] to-[#2d5c94]",
       preview: "linear-gradient(to bottom right, #4a7ec2, #2d5c94)",
-      desc: "Dingin dan fokus.",
     },
     {
       name: "Forest Green",
       type: "class",
       value: "bg-gradient-to-br from-[#45a387] to-[#2b735c]",
       preview: "linear-gradient(to bottom right, #45a387, #2b735c)",
-      desc: "Tenang dan natural.",
     },
     {
       name: "Midnight",
       type: "class",
       value: "bg-[#1a1a2e]",
       preview: "#1a1a2e",
-      desc: "Gelap dan minim distraksi.",
     },
     {
       name: "Soft Rose",
       type: "class",
       value: "bg-[#b35d5d]",
       preview: "#b35d5d",
-      desc: "Hangat dan lembut.",
     },
     {
       name: "Cozy Room",
       type: "style",
       value: `url(${ghibli1})`,
-      preview: ghibli1,
-      desc: "GIF cozy untuk suasana santai.",
+      preview: ghibli1, 
     },
     {
       name: "Garden",
       type: "style",
       value: `url(${garden1})`,
       preview: garden1,
-      desc: "Background taman yang adem.",
+    },
+    {
+      name: "cat pond",
+      type: "style",
+      value: `url(${cat1})`,
+      preview: cat1,
+    },
+    {
+      name: "Cat desk",
+      type: "style",
+      value: `url(${cat2})`,
+      preview: cat2,
+    },
+    {
+      name: "Dark Sky",
+      type: "style",
+      value: `url(${dark2})`,
+      preview: dark2,
+    },
+    {
+      name: "Dark city",
+      type: "style",
+      value: `url(${dark3})`,
+      preview: dark3,
+    },
+    {
+      name: "Desk",
+      type: "style",
+      value: `url(${desk})`,
+      preview: desk,
     },
   ];
 
