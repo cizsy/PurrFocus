@@ -8,15 +8,13 @@ import {
   Timer,
   ChevronLeft,
   ChevronRight,
+  LogOut,
 } from "lucide-react";
 
 import { brandAssets } from "./brand";
-import profil from "../assets/profil.jpg";
 import { catAssets } from "./catAssets";
-
-// IMPORT YANG DITAMBAHKAN: Panggil purrThemes dan DEFAULT_THEME
-import { purrThemes, DEFAULT_THEME } from "./purrThemes"; 
-// (Sesuaikan path import purrThemes di atas dengan struktur foldermu jika berbeda)
+import { purrThemes, DEFAULT_THEME } from "./purrThemes";
+import { useAuth } from "../context/AuthContext";
 
 const getSavedTheme = () => {
   try {
@@ -39,6 +37,7 @@ const getSavedCollapseState = () => {
 };
 
 function Layout({ children, activePage, setPage, totalActiveTasks }) {
+  const { user, logout } = useAuth();
   const [themeName, setThemeName] = useState(getSavedTheme);
   const theme = purrThemes[themeName] || purrThemes[DEFAULT_THEME];
   const [isCollapsed, setIsCollapsed] = useState(getSavedCollapseState);
@@ -246,20 +245,27 @@ function Layout({ children, activePage, setPage, totalActiveTasks }) {
           </div>
 
           <div className="flex shrink-0 items-center gap-3 rounded-2xl border border-black/5 bg-white/50 p-2 pr-4 shadow-sm backdrop-blur-sm">
-            <img
-              src={profil}
-              alt="Profil"
-              className="h-10 w-10 rounded-xl object-cover shadow-sm"
-            />
+            {/* Avatar dari initial huruf username */}
+            <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-sm font-black shadow-sm ${theme.button}`}>
+              {user?.username?.[0]?.toUpperCase() || '?'}
+            </div>
 
             <div className="hidden text-left sm:block">
               <p className={`text-sm font-black leading-none ${theme.text}`}>
-                John Doe
+                {user?.username || 'Teman Fokus'}
               </p>
               <p className={`mt-1 text-[10px] font-black uppercase tracking-wider ${theme.muted}`}>
                 Teman Fokus
               </p>
             </div>
+
+            <button
+              onClick={logout}
+              title="Keluar"
+              className={`ml-1 flex h-8 w-8 items-center justify-center rounded-xl transition-all hover:bg-red-50 hover:text-red-500 ${theme.muted}`}
+            >
+              <LogOut size={15} strokeWidth={2.5} />
+            </button>
           </div>
         </nav>
 

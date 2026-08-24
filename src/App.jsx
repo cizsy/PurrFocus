@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { AuthProvider, useAuth } from './context/AuthContext';
 import useTasks from './hooks/useTask';
 import useStats from './hooks/useStats'; 
 import Dashboard from './pages/dashboard'; 
@@ -8,8 +9,22 @@ import Layout from './components/layout';
 import Statistik from './pages/statistik';
 import Riwayat from './pages/riwayat'; 
 import Pengaturan from './pages/pengaturan';
+import AuthPage from './pages/auth';
 
-function App() {
+// ─── Loading screen ────────────────────────────────────────────────────────────
+function LoadingScreen() {
+  return (
+    <div className="flex min-h-screen items-center justify-center bg-[#fdf8f3]">
+      <div className="flex flex-col items-center gap-4">
+        <div className="h-12 w-12 animate-spin rounded-full border-4 border-amber-200 border-t-amber-900" />
+        <p className="text-sm font-black text-amber-900/40">Memuat PurrFocus...</p>
+      </div>
+    </div>
+  );
+}
+
+// ─── Main App (inside auth) ────────────────────────────────────────────────────
+function AppInner() {
   const [view, setView] = useState('dashboard');
   const [activeTaskId, setActiveTaskId] = useState(null);
   
@@ -116,6 +131,24 @@ function App() {
         <Pengaturan />
       )}
     </Layout>
+  );
+}
+
+// ─── Auth Guard ────────────────────────────────────────────────────────────────
+function AuthGuard() {
+  const { user, isLoading } = useAuth();
+
+  if (isLoading) return <LoadingScreen />;
+  if (!user) return <AuthPage />;
+  return <AppInner />;
+}
+
+// ─── Root ──────────────────────────────────────────────────────────────────────
+function App() {
+  return (
+    <AuthProvider>
+      <AuthGuard />
+    </AuthProvider>
   );
 }
 

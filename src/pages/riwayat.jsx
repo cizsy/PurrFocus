@@ -14,6 +14,7 @@ import {
 
 import { catAssets } from "../components/catAssets";
 import { purrThemes, DEFAULT_THEME } from "../components/purrThemes";
+import { tasksAPI } from "../services/api";
 
 const getSavedThemeName = () => {
   try {
@@ -56,27 +57,18 @@ function Riwayat({ focusLogs = [] }) {
   const [themeName, setThemeName] = useState(getSavedThemeName);
   const theme = purrThemes[themeName] || purrThemes[DEFAULT_THEME];
 
+  // Muat riwayat: tasks yang sudah diarsipkan dari backend
   useEffect(() => {
-    const savedHistory = safeReadJSON("purrfocus_history", []);
-    const activeTasks = safeReadJSON("purrfocus_tasks", []);
-
-    const todaysFinishedTasks = activeTasks.filter((task) => {
-      const total = task.subtasks?.length || 0;
-      const done = task.subtasks?.filter((subtask) => subtask.completed).length || 0;
-
-      return total > 0 && done === total;
-    });
-
-    const combined = [...savedHistory, ...todaysFinishedTasks];
-    const uniqueHistory = Array.from(
-      new Map(combined.map((item) => [item.id, item])).values()
-    );
-
-    const sorted = uniqueHistory.sort((a, b) => {
-      return new Date(b.createdAt) - new Date(a.createdAt);
-    });
-
-    setHistoryTasks(sorted);
+    tasksAPI.getAll(true)
+      .then((archivedTasks) => {
+        const sorted = [...archivedTasks].sort((a, b) => {
+          return new Date(b.created_at) - new Date(a.created_at);
+        });
+        setHistoryTasks(sorted);
+      })
+      .catch((err) => {
+        console.error('[Riwayat] Gagal memuat riwayat:', err);
+      });
   }, []);
 
   useEffect(() => {
@@ -97,7 +89,7 @@ function Riwayat({ focusLogs = [] }) {
 
   const groupTasksByDate = (tasks) => {
     return tasks.reduce((acc, task) => {
-      const date = new Date(task.createdAt).toLocaleDateString("id-ID", {
+      const date = new Date(task.created_at).toLocaleDateString("id-ID", {
         weekday: "long",
         day: "numeric",
         month: "long",

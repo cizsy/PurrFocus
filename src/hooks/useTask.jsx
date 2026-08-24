@@ -1,26 +1,17 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
+import { tasksAPI, focusLogsAPI } from '../services/api';
 
 function useTasks() {
-  // fungsi untuk mengambil data tasks dari localStorage
-  const [tasks, setTasks] = useState(() => {
-    const saved = localStorage.getItem("purrfocus_tasks");
-    return saved ? JSON.parse(saved) : [];
-  });
-
-  // fungsi untuk mengambil data focusLogs dari localStorage
-  const [focusLogs, setFocusLogs] = useState(() => {
-    const saved = localStorage.getItem("purrfocus_logs");
-    return saved ? JSON.parse(saved) : [];
-  });
+  const [tasks, setTasks] = useState([]);
+  const [focusLogs, setFocusLogs] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
 
   // fungsi untuk membuat format tanggal lokal: YYYY-MM-DD
   const getLocalDateString = (date = new Date()) => {
     const localDate = new Date(date);
-
     const year = localDate.getFullYear();
-    const month = String(localDate.getMonth() + 1).padStart(2, "0");
-    const day = String(localDate.getDate()).padStart(2, "0");
-
+    const month = String(localDate.getMonth() + 1).padStart(2, '0');
+    const day = String(localDate.getDate()).padStart(2, '0');
     return `${year}-${month}-${day}`;
   };
 
@@ -29,181 +20,216 @@ function useTasks() {
     return getLocalDateString(dateA) === getLocalDateString(dateB);
   };
 
-  // fungsi untuk membandingkan tasks apakah sudah melewati hari atau masih aktif
-  useEffect(() => {
-    const expiredTasks = tasks.filter((task) => {
-      return !isSameLocalDate(task.createdAt);
-    });
+  // ─── Load data dari backend ─────────────────────────────────────────────────
+  const loadData = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      const [tasksData, logsData] = await Promise.all([
+        tasksAPI.getAll(false),
+        focusLogsAPI.getAll(),
+      ]);
 
-    if (expiredTasks.length > 0) {
-      const history = JSON.parse(localStorage.getItem("purrfocus_history") || "[]");
-      const newHistory = [...history, ...expiredTasks];
+      // Arsipkan tasks yang sudah lewat hari
+      const expiredTaskIds = tasksData
+        .filter((task) => !isSameLocalDate(task.created_at))
+        .map((task) => task.id);
 
-      localStorage.setItem("purrfocus_history", JSON.stringify(newHistory));
+      if (expiredTaskIds.length > 0) {
+        await Promise.all(expiredTaskIds.map((id) => tasksAPI.archive(id)));
+        const freshTasks = tasksData.filter((task) => isSameLocalDate(task.created_at));
+        setTasks(freshTasks);
+      } else {
+        setTasks(tasksData);
+      }
 
-      const activeTasks = tasks.filter((task) => {
-        return isSameLocalDate(task.createdAt);
-      });
-
-      setTasks(activeTasks);
+      setFocusLogs(logsData);
+    } catch (err) {
+      console.error('[useTasks] Gagal memuat data:', err);
+    } finally {
+      setIsLoading(false);
     }
   }, []);
 
-  // menyimpan perubahan tasks ke localStorage
   useEffect(() => {
-    localStorage.setItem("purrfocus_tasks", JSON.stringify(tasks));
+    loadData();
+  }, [loadData]);
+
+  // ─── Focus Log ──────────────────────────────────────────────────────────────
+  const addFocusLog = useCallback(async (taskId, duration) => {
+    const task = tasks.find((t) => t.id === taskId);
+    try {
+      const newLog = await focusLogsAPI.create({
+        taskId,
+        duration,
+        taskTitle: task?.title || 'Unknown Task',
+        date: getLocalDateString(),
+        type: 'focus',
+      });
+      setFocusLogs((prev) => [...prev, newLog]);
+    } catch (err) {
+      console.error('[useTasks] Gagal menyimpan focus log:', err);
+    }
   }, [tasks]);
 
-  // menyimpan perubahan focusLogs ke localStorage
-  useEffect(() => {
-    localStorage.setItem("purrfocus_logs", JSON.stringify(focusLogs));
-  }, [focusLogs]);
+  // ─── Task CRUD ──────────────────────────────────────────────────────────────
+  const addTask = useCallback(async (taskName, category = 'Umum', deadline = null) => {
+    if (!taskName || taskName.trim() === '') return false;
+    try {
+      const today = getLocalDateString();
+      const newTask = await tasksAPI.create({
+        title: taskName.trim(),
+        category,
+        deadline: deadline || today,
+        createdAt: today,
+      });
+      setTasks((prev) => [...prev, newTask]);
+      return true;
+    } catch (err) {
+      console.error('[useTasks] Gagal menambah task:', err);
+      return false;
+    }
+  }, []);
 
-  const addFocusLog = (taskId, duration) => {
-    const newLog = {
-      id: Date.now(),
-      taskId,
-      duration,
-      taskTitle: tasks.find((task) => task.id === taskId)?.title || "Unknown Task",
-      date: getLocalDateString(),
-      type: "focus",
-    };
+  const updateTaskDetail = useCallback(async (taskId, updates) => {
+    try {
+      const updated = await tasksAPI.update(taskId, updates);
+      setTasks((prev) => prev.map((t) => (t.id === taskId ? updated : t)));
+    } catch (err) {
+      console.error('[useTasks] Gagal update task:', err);
+    }
+  }, []);
 
-    setFocusLogs((prev) => [...prev, newLog]);
-  };
+  const deleteTask = useCallback(async (taskId) => {
+    try {
+      await tasksAPI.remove(taskId);
+      setTasks((prev) => prev.filter((t) => t.id !== taskId));
+      return true;
+    } catch (err) {
+      console.error('[useTasks] Gagal hapus task:', err);
+      return false;
+    }
+  }, []);
 
-  const addTask = (taskName, category = "Umum", deadline = null) => {
-    if (!taskName || taskName.trim() === "") return false;
+  // editTask — alias untuk updateTaskDetail (backward compat)
+  const editTask = updateTaskDetail;
 
-    const newTask = {
-      id: Date.now(),
-      title: taskName,
-      status: "hunting",
-      subtasks: [],
-      createdAt: getLocalDateString(),
-      deadline: deadline || getLocalDateString(),
-      category,
-      notes: "",
-    };
+  // ─── Subtask CRUD ───────────────────────────────────────────────────────────
+  const addSubtask = useCallback(async (taskId, text) => {
+    if (!text || text.trim() === '') return;
+    try {
+      const newSubtask = await tasksAPI.addSubtask(taskId, text.trim());
+      setTasks((prev) =>
+        prev.map((task) =>
+          task.id === taskId
+            ? { ...task, subtasks: [...(task.subtasks || []), newSubtask] }
+            : task
+        )
+      );
+    } catch (err) {
+      console.error('[useTasks] Gagal menambah subtask:', err);
+    }
+  }, []);
 
-    setTasks((prev) => [...prev, newTask]);
-    return true;
-  };
+  const toggleSubtask = useCallback(async (taskId, subtaskId) => {
+    const task = tasks.find((t) => t.id === taskId);
+    const subtask = task?.subtasks?.find((s) => s.id === subtaskId);
+    if (!subtask) return;
 
-  const updateTaskDetail = (taskId, updates) => {
+    const newCompleted = !subtask.completed;
+
+    // Optimistic update
     setTasks((prev) =>
-      prev.map((task) =>
-        task.id === taskId ? { ...task, ...updates } : task
-      )
-    );
-  };
-
-  const deleteTask = (taskId) => {
-    setTasks((prev) => prev.filter((task) => task.id !== taskId));
-    return true;
-  };
-
-  const toggleSubtask = (taskId, subtaskId) => {
-    setTasks((prev) =>
-      prev.map((task) => {
-        if (task.id !== taskId) return task;
-
+      prev.map((t) => {
+        if (t.id !== taskId) return t;
         return {
-          ...task,
-          subtasks: task.subtasks.map((subtask) =>
-            subtask.id === subtaskId
-              ? { ...subtask, completed: !subtask.completed }
-              : subtask
+          ...t,
+          subtasks: t.subtasks.map((s) =>
+            s.id === subtaskId ? { ...s, completed: newCompleted } : s
           ),
         };
       })
     );
-  };
 
-  const addSubtask = (taskId, text) => {
-    if (!text || text.trim() === "") return;
+    try {
+      await tasksAPI.updateSubtask(taskId, subtaskId, { completed: newCompleted });
+    } catch (err) {
+      console.error('[useTasks] Gagal toggle subtask:', err);
+      // Rollback on error
+      setTasks((prev) =>
+        prev.map((t) => {
+          if (t.id !== taskId) return t;
+          return {
+            ...t,
+            subtasks: t.subtasks.map((s) =>
+              s.id === subtaskId ? { ...s, completed: subtask.completed } : s
+            ),
+          };
+        })
+      );
+    }
+  }, [tasks]);
 
-    setTasks((prev) =>
-      prev.map((task) => {
-        if (task.id !== taskId) return task;
+  const editSubtask = useCallback(async (taskId, subtaskId, newText) => {
+    if (!newText || newText.trim() === '') return;
+    try {
+      await tasksAPI.updateSubtask(taskId, subtaskId, { text: newText.trim() });
+      setTasks((prev) =>
+        prev.map((t) => {
+          if (t.id !== taskId) return t;
+          return {
+            ...t,
+            subtasks: t.subtasks.map((s) =>
+              s.id === subtaskId ? { ...s, text: newText.trim() } : s
+            ),
+          };
+        })
+      );
+    } catch (err) {
+      console.error('[useTasks] Gagal edit subtask:', err);
+    }
+  }, []);
 
-        return {
-          ...task,
-          subtasks: [
-            ...task.subtasks,
-            {
-              id: Date.now(),
-              text,
-              completed: false,
-            },
-          ],
-        };
-      })
-    );
-  };
+  const deleteSubtask = useCallback(async (taskId, subtaskId) => {
+    try {
+      await tasksAPI.removeSubtask(taskId, subtaskId);
+      setTasks((prev) =>
+        prev.map((t) => {
+          if (t.id !== taskId) return t;
+          return { ...t, subtasks: t.subtasks.filter((s) => s.id !== subtaskId) };
+        })
+      );
+    } catch (err) {
+      console.error('[useTasks] Gagal hapus subtask:', err);
+    }
+  }, []);
 
-  const editSubtask = (taskId, subtaskId, newText) => {
-    if (!newText || newText.trim() === "") return;
-
-    setTasks((prev) =>
-      prev.map((task) => {
-        if (task.id !== taskId) return task;
-
-        return {
-          ...task,
-          subtasks: task.subtasks.map((subtask) =>
-            subtask.id === subtaskId
-              ? { ...subtask, text: newText }
-              : subtask
-          ),
-        };
-      })
-    );
-  };
-
-  const deleteSubtask = (taskId, subtaskId) => {
-    setTasks((prev) =>
-      prev.map((task) => {
-        if (task.id !== taskId) return task;
-
-        return {
-          ...task,
-          subtasks: task.subtasks.filter((subtask) => subtask.id !== subtaskId),
-        };
-      })
-    );
-  };
-
+  // ─── Helpers ────────────────────────────────────────────────────────────────
   const getTaskProgress = (task) => {
     const total = task.subtasks?.length || 0;
-    const completed = task.subtasks?.filter((subtask) => subtask.completed).length || 0;
+    const completed = task.subtasks?.filter((s) => s.completed).length || 0;
     const percentage = total === 0 ? 0 : Math.round((completed / total) * 100);
-
-    return {
-      total,
-      completed,
-      percentage,
-    };
+    return { total, completed, percentage };
   };
 
-  const updateTaskNotes = (taskId, newNotes) => {
-    setTasks((prev) =>
-      prev.map((task) =>
-        task.id === taskId ? { ...task, notes: newNotes } : task
-      )
-    );
-  };
+  const updateTaskNotes = useCallback(async (taskId, newNotes) => {
+    try {
+      const updated = await tasksAPI.update(taskId, { notes: newNotes });
+      setTasks((prev) => prev.map((t) => (t.id === taskId ? updated : t)));
+    } catch (err) {
+      console.error('[useTasks] Gagal update notes:', err);
+    }
+  }, []);
 
-  const getActiveTask = (id) => {
-    return tasks.find((task) => task.id === id) || null;
-  };
+  const getActiveTask = (id) => tasks.find((t) => t.id === id) || null;
 
   return {
     tasks,
     focusLogs,
+    isLoading,
     addFocusLog,
     addTask,
     deleteTask,
+    editTask,
     updateTaskDetail,
     toggleSubtask,
     addSubtask,
