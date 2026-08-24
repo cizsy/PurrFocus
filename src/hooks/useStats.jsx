@@ -50,7 +50,7 @@ const safeReadJSON = (key, fallback) => {
   }
 };
 
-function useStats(tasks = [], focusLogs = []) {
+function useStats(tasks = [], focusLogs = [], archivedTasks = []) {
   const stats = useMemo(() => {
     const todayKey = getTodayKey();
 
@@ -105,6 +105,15 @@ function useStats(tasks = [], focusLogs = []) {
       const checker = new Date();
       checker.setHours(0, 0, 0, 0);
 
+      const todayKey = getLocalDateKey(checker);
+      if (!focusDateKeys.includes(todayKey)) {
+        checker.setDate(checker.getDate() - 1);
+        const yesterdayKey = getLocalDateKey(checker);
+        if (!focusDateKeys.includes(yesterdayKey)) {
+          return 0;
+        }
+      }
+
       while (true) {
         const key = getLocalDateKey(checker);
 
@@ -118,7 +127,7 @@ function useStats(tasks = [], focusLogs = []) {
     };
 
     // 4. Completed tasks
-    const completedTasks = tasks.filter((task) => {
+    const completedTasks = [...tasks, ...archivedTasks].filter((task) => {
       const subtasks = task.subtasks || [];
 
       if (subtasks.length > 0) {
@@ -157,8 +166,7 @@ function useStats(tasks = [], focusLogs = []) {
         return total + (Number(log.duration) || 0) * 2;
       }, 0);
 
-      const history = safeReadJSON("purrfocus_history", []);
-      const allTasks = [...tasks, ...history];
+      const allTasks = [...tasks, ...archivedTasks];
 
       const subtaskPoints = allTasks.reduce((total, task) => {
         const completedSubtasks =
@@ -199,7 +207,7 @@ function useStats(tasks = [], focusLogs = []) {
       totalXP: calculateTotalXP(),
       focusScore: calculateScore(),
     };
-  }, [tasks, focusLogs]);
+  }, [tasks, focusLogs, archivedTasks]);
 
   return stats;
 }

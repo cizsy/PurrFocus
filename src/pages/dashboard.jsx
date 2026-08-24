@@ -26,6 +26,7 @@ const parseLocalDate = (dateString) => {
 function Dashboard({
   tasks = [],
   focusLogs = [],
+  archivedTasks = [],
   onAddTask,
   onStartFocusing,
 }) {
@@ -41,7 +42,7 @@ function Dashboard({
     focusScore,
     currentStreak,
     totalXP,
-  } = useStats(tasks, focusLogs);
+  } = useStats(tasks, focusLogs, archivedTasks);
 
   useEffect(() => {
     const handleThemeChange = (event) => {

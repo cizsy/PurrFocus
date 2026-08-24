@@ -31,6 +31,7 @@ function AppInner() {
   const { 
     tasks = [], 
     focusLogs = [],
+    archivedTasks = [],
     addFocusLog,
     addTask, 
     deleteTask, 
@@ -43,7 +44,7 @@ function AppInner() {
     updateTaskNotes
   } = useTasks() || {};
 
-  const stats = useStats(tasks, focusLogs);
+  const stats = useStats(tasks, focusLogs, archivedTasks);
 
   const currentActiveTask = tasks.find(t => t.id === activeTaskId);
 
@@ -95,6 +96,7 @@ function AppInner() {
         <Dashboard 
           tasks={tasks}
           focusLogs={focusLogs}
+          archivedTasks={archivedTasks}
           onAddTask={addTask}
           onDeleteTask={deleteTask}
           onEditTask={editTask}
@@ -120,11 +122,12 @@ function AppInner() {
         <Statistik
          tasks={tasks}
          focusLogs={focusLogs}
+         archivedTasks={archivedTasks}
         /> 
       )}
 
       {view === 'riwayat' && (
-        <Riwayat focusLogs={focusLogs} />
+        <Riwayat focusLogs={focusLogs} archivedTasks={archivedTasks} />
       )}
 
       {view === 'pengaturan' && (

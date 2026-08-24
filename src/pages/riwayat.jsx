@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useMemo } from "react";
 import {
   Target,
   Timer,
@@ -14,7 +14,6 @@ import {
 
 import { catAssets } from "../components/catAssets";
 import { purrThemes, DEFAULT_THEME } from "../components/purrThemes";
-import { tasksAPI } from "../services/api";
 
 const getSavedThemeName = () => {
   try {
@@ -28,14 +27,6 @@ const getSavedThemeName = () => {
   }
 };
 
-const safeReadJSON = (key, fallback = []) => {
-  try {
-    const saved = localStorage.getItem(key);
-    return saved ? JSON.parse(saved) : fallback;
-  } catch {
-    return fallback;
-  }
-};
 
 const formatDuration = (minutes) => {
   const safeMinutes = Number(minutes) || 0;
@@ -48,8 +39,7 @@ const formatDuration = (minutes) => {
   return `${hours}j ${mins}m`;
 };
 
-function Riwayat({ focusLogs = [] }) {
-  const [historyTasks, setHistoryTasks] = useState([]);
+function Riwayat({ focusLogs = [], archivedTasks = [] }) {
   const [activeTab, setActiveTab] = useState("misi");
   const [filter, setFilter] = useState("semua");
   const [expandedTask, setExpandedTask] = useState(null);
@@ -57,19 +47,11 @@ function Riwayat({ focusLogs = [] }) {
   const [themeName, setThemeName] = useState(getSavedThemeName);
   const theme = purrThemes[themeName] || purrThemes[DEFAULT_THEME];
 
-  // Muat riwayat: tasks yang sudah diarsipkan dari backend
-  useEffect(() => {
-    tasksAPI.getAll(true)
-      .then((archivedTasks) => {
-        const sorted = [...archivedTasks].sort((a, b) => {
-          return new Date(b.created_at) - new Date(a.created_at);
-        });
-        setHistoryTasks(sorted);
-      })
-      .catch((err) => {
-        console.error('[Riwayat] Gagal memuat riwayat:', err);
-      });
-  }, []);
+  const historyTasks = useMemo(() => {
+    return [...archivedTasks].sort((a, b) => {
+      return new Date(b.created_at) - new Date(a.created_at);
+    });
+  }, [archivedTasks]);
 
   useEffect(() => {
     const handleThemeChange = (event) => {
@@ -85,7 +67,6 @@ function Riwayat({ focusLogs = [] }) {
 
   const catColor = theme.isDark ? "white" : "black";
   const catSad = catAssets?.[catColor]?.sad || catAssets?.black?.sad;
-  const catAngry = catAssets?.[catColor]?.angry || catAssets?.black?.angry;
 
   const groupTasksByDate = (tasks) => {
     return tasks.reduce((acc, task) => {

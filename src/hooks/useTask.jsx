@@ -4,6 +4,7 @@ import { tasksAPI, focusLogsAPI } from '../services/api';
 function useTasks() {
   const [tasks, setTasks] = useState([]);
   const [focusLogs, setFocusLogs] = useState([]);
+  const [archivedTasks, setArchivedTasks] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
 
   // fungsi untuk membuat format tanggal lokal: YYYY-MM-DD
@@ -24,9 +25,10 @@ function useTasks() {
   const loadData = useCallback(async () => {
     setIsLoading(true);
     try {
-      const [tasksData, logsData] = await Promise.all([
+      const [tasksData, logsData, archivedData] = await Promise.all([
         tasksAPI.getAll(false),
         focusLogsAPI.getAll(),
+        tasksAPI.getAll(true),
       ]);
 
       // Arsipkan tasks yang sudah lewat hari
@@ -38,8 +40,13 @@ function useTasks() {
         await Promise.all(expiredTaskIds.map((id) => tasksAPI.archive(id)));
         const freshTasks = tasksData.filter((task) => isSameLocalDate(task.created_at));
         setTasks(freshTasks);
+        
+        // Muat ulang archivedTasks karena baru saja ada yang diarsipkan
+        const updatedArchived = await tasksAPI.getAll(true);
+        setArchivedTasks(updatedArchived);
       } else {
         setTasks(tasksData);
+        setArchivedTasks(archivedData);
       }
 
       setFocusLogs(logsData);
@@ -225,6 +232,7 @@ function useTasks() {
   return {
     tasks,
     focusLogs,
+    archivedTasks,
     isLoading,
     addFocusLog,
     addTask,

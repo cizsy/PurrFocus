@@ -27,7 +27,7 @@ const getSavedThemeName = () => {
   }
 };
 
-function Statistik({ tasks = [], focusLogs = [] }) {
+function Statistik({ tasks = [], focusLogs = [], archivedTasks = [] }) {
   const [themeName, setThemeName] = useState(getSavedThemeName);
   const theme = purrThemes[themeName] || purrThemes[DEFAULT_THEME];
 
@@ -39,7 +39,7 @@ function Statistik({ tasks = [], focusLogs = [] }) {
     currentStreak,
     weeklyDistribution,
     categoryDistribution,
-  } = useStats(tasks, focusLogs);
+  } = useStats(tasks, focusLogs, archivedTasks);
 
   useEffect(() => {
     const handleThemeChange = (event) => {
